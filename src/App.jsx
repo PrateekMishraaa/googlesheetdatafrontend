@@ -14,7 +14,7 @@ const App = () => {
       setLoading(true);
       setError(false);
 
-      const res = await axios.get("http://localhost:5000/get-data");
+      const res = await axios.get("https://googlesheetdatabakend.onrender.com/get-data");
       const apiData = Array.isArray(res.data) ? res.data : res.data.data;
 
       setData(apiData);
