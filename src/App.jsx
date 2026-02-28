@@ -14,8 +14,13 @@ const App = () => {
       setLoading(true);
       setError(false);
 
-      const res = await axios.get("https://googlesheetdatabakend.onrender.com/get-data");
-      const apiData = Array.isArray(res.data) ? res.data : res.data.data;
+      const res = await axios.get(
+        "https://googlesheetdatabakend.onrender.com/get-data"
+      );
+
+      const apiData = Array.isArray(res.data)
+        ? res.data
+        : res.data.data;
 
       setData(apiData);
       setCurrentPage(1);
@@ -37,33 +42,39 @@ const App = () => {
   }, [data, search]);
 
   // 📄 Pagination Logic
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+  const totalPages = Math.ceil(
+    filteredData.length / itemsPerPage
+  );
+
   const startIndex = (currentPage - 1) * itemsPerPage;
+
   const currentData = filteredData.slice(
     startIndex,
     startIndex + itemsPerPage
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-blue-100 to-purple-200 p-8">
-      <div className="max-w-7xl mx-auto bg-white shadow-2xl rounded-3xl p-10">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-blue-100 to-purple-200 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto bg-white shadow-2xl rounded-3xl p-6 md:p-10">
+
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-4xl font-bold text-gray-800">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 text-center md:text-left">
+          <h1 className="text-2xl md:text-4xl font-bold text-gray-800">
             📊 Google Sheet Dashboard
           </h1>
 
           <button
             onClick={fetchData}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl shadow-lg hover:scale-105 transition"
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 md:py-3 rounded-xl shadow-lg hover:scale-105 transition"
           >
             Load Data
           </button>
         </div>
 
-        {/* Search + Info */}
+        {/* Search + Controls */}
         {data.length > 0 && (
           <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+
             <input
               type="text"
               placeholder="Search anything..."
@@ -75,9 +86,10 @@ const App = () => {
               className="border px-4 py-2 rounded-xl w-full md:w-1/3 shadow-sm focus:ring-2 focus:ring-blue-400 outline-none"
             />
 
-            <div className="flex items-center gap-4">
-              <span className="text-gray-600 font-medium">
-                Total Records:{" "}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+
+              <span className="text-gray-600 text-sm md:text-base font-medium">
+                Total:{" "}
                 <span className="text-blue-600">
                   {filteredData.length}
                 </span>
@@ -99,13 +111,14 @@ const App = () => {
           </div>
         )}
 
-        {/* Loading & Error */}
+        {/* Loading */}
         {loading && (
           <p className="text-center text-blue-600 font-semibold animate-pulse">
             Loading data...
           </p>
         )}
 
+        {/* Error */}
         {error && (
           <p className="text-center text-red-600 font-semibold">
             Error fetching API
@@ -115,14 +128,14 @@ const App = () => {
         {/* Table */}
         {currentData.length > 0 && (
           <>
-            <div className="overflow-x-auto rounded-2xl shadow-lg">
-              <table className="w-full border-collapse">
+            <div className="w-full overflow-x-auto rounded-2xl shadow-lg">
+              <table className="min-w-full text-sm md:text-base">
                 <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
                   <tr>
                     {Object.keys(currentData[0]).map((key) => (
                       <th
                         key={key}
-                        className="p-4 text-left font-semibold"
+                        className="p-3 md:p-4 text-left font-semibold whitespace-nowrap"
                       >
                         {key}
                       </th>
@@ -137,7 +150,10 @@ const App = () => {
                       className="border-b hover:bg-blue-50 transition"
                     >
                       {Object.values(row).map((value, i) => (
-                        <td key={i} className="p-4 text-gray-700">
+                        <td
+                          key={i}
+                          className="p-3 md:p-4 text-gray-700 whitespace-nowrap"
+                        >
                           {Array.isArray(value)
                             ? value.join(", ")
                             : value}
@@ -149,36 +165,74 @@ const App = () => {
               </table>
             </div>
 
-            {/* Pagination */}
-            <div className="flex justify-center items-center mt-8 gap-3">
+            {/* 🔥 Smart Ellipsis Pagination */}
+            <div className="flex flex-wrap justify-center items-center mt-8 gap-2">
+
+              {/* Prev */}
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((prev) => prev - 1)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                className="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
               >
-                ◀ Prev
+                ◀
               </button>
 
-              {[...Array(totalPages)].map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentPage(index + 1)}
-                  className={`px-4 py-2 rounded-lg ${
-                    currentPage === index + 1
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-200 hover:bg-gray-300"
-                  }`}
-                >
-                  {index + 1}
-                </button>
-              ))}
+              {/* First Page */}
+              {currentPage > 3 && (
+                <>
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    className="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+                  >
+                    1
+                  </button>
+                  {currentPage > 4 && <span className="px-2">...</span>}
+                </>
+              )}
 
+              {/* Middle Pages */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(
+                  (page) =>
+                    page >= currentPage - 1 &&
+                    page <= currentPage + 1
+                )
+                .map((page) => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-2 rounded-lg transition ${
+                      currentPage === page
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 hover:bg-gray-300"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+              {/* Last Page */}
+              {currentPage < totalPages - 2 && (
+                <>
+                  {currentPage < totalPages - 3 && (
+                    <span className="px-2">...</span>
+                  )}
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    className="px-3 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+
+              {/* Next */}
               <button
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((prev) => prev + 1)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+                className="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
               >
-                Next ▶
+                ▶
               </button>
             </div>
           </>
