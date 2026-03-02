@@ -529,7 +529,7 @@ const App = () => {
                                   
                                   <h3 className="font-semibold text-gray-700 mt-4 mb-2">Additional Info</h3>
                                   <p className="whitespace-normal break-words"><span className="font-medium">State & District:</span> {row.stateDistrict}</p>
-                                  <p><span className="font-medium">Timestamp:</span> {row.timestamp}</p>
+                                  <p><span className="font-medium">Date And Time:</span> {row.timestamp}</p>
                                 </div>
                               </div>
                             </td>
