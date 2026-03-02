@@ -17,6 +17,15 @@ const App = () => {
   const [validUdiseFilter, setValidUdiseFilter] = useState("Duplicated");
   const [udiseUpdated, setUdiseUpdated] = useState("All schools");
   const [expandedRow, setExpandedRow] = useState(null);
+  
+  // Summary statistics
+  const [summaryStats, setSummaryStats] = useState({
+    totalInstitutes: 0,
+    totalParticipants: 0,
+    totalGirls: 0,
+    totalFaculty: 0,
+    totalEvents: 0
+  });
 
   // Responsive items per page based on screen size
   useEffect(() => {
@@ -59,6 +68,37 @@ const App = () => {
     column8: 19
   };
 
+  // Helper function to clean and parse numeric values
+  const parseNumericValue = (value) => {
+    if (!value) return 0;
+    // Remove any non-numeric characters except digits
+    const cleaned = value.toString().replace(/[^\d]/g, '');
+    return parseInt(cleaned) || 0;
+  };
+
+  // Helper function to check if a row is a valid institute entry
+  const isValidInstitute = (row) => {
+    // Check if institute name exists and is not empty/null/undefined
+    const instituteName = row[columnMapping.instituteName];
+    if (!instituteName || instituteName.toString().trim() === "" || instituteName.toString().trim() === " ") {
+      return false;
+    }
+    
+    // Check if it has valid participant data
+    const participants = parseNumericValue(row[columnMapping.totalParticipants]);
+    const girls = parseNumericValue(row[columnMapping.totalGirls]);
+    const faculty = parseNumericValue(row[columnMapping.totalFaculty]);
+    
+    // Consider it valid if it has institute name and at least one numeric field > 0
+    // OR if it has institute name and looks like a real entry (not empty spaces)
+    return (instituteName && instituteName.toString().trim().length > 0 && 
+            instituteName.toString().trim() !== " " && 
+            (participants > 0 || girls > 0 || faculty > 0 || 
+             instituteName.toString().includes("College") || 
+             instituteName.toString().includes("University") ||
+             instituteName.toString().includes("Institute")));
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -70,33 +110,41 @@ const App = () => {
 
       // Handle the API response format
       let apiData = [];
+      let validInstitutes = [];
+      
       if (Array.isArray(res.data)) {
         // Check if it's an array of arrays (your format)
         if (res.data.length > 0 && Array.isArray(res.data[0])) {
           // Skip header row (index 0) and map the data
-          apiData = res.data.slice(1).map((row, index) => ({
+          const allRows = res.data.slice(1);
+          
+          // First pass: filter valid institutes
+          validInstitutes = allRows.filter(row => isValidInstitute(row));
+          
+          // Map the valid institutes
+          apiData = validInstitutes.map((row, index) => ({
             id: index + 1,
             timestamp: row[columnMapping.timestamp] || "",
-            instituteName: row[columnMapping.instituteName] || "",
-            address: row[columnMapping.address] || "",
-            totalParticipants: row[columnMapping.totalParticipants] || "0",
-            totalGirls: row[columnMapping.totalGirls] || "0",
-            totalFaculty: row[columnMapping.totalFaculty] || "0",
-            stateDistrict: row[columnMapping.stateDistrict] || "",
-            campusAmbassadors: row[columnMapping.campusAmbassadors] || "",
-            eventDate: row[columnMapping.eventDate] || "",
-            email: row[columnMapping.email] || "",
+            instituteName: row[columnMapping.instituteName]?.toString().trim() || "",
+            address: row[columnMapping.address]?.toString().trim() || "",
+            totalParticipants: parseNumericValue(row[columnMapping.totalParticipants]),
+            totalGirls: parseNumericValue(row[columnMapping.totalGirls]),
+            totalFaculty: parseNumericValue(row[columnMapping.totalFaculty]),
+            stateDistrict: row[columnMapping.stateDistrict]?.toString().trim() || "",
+            campusAmbassadors: row[columnMapping.campusAmbassadors]?.toString().trim() || "",
+            eventDate: row[columnMapping.eventDate]?.toString().trim() || "",
+            email: row[columnMapping.email]?.toString().trim() || "",
             score: row[columnMapping.score] || "0",
-            emailAddress: row[columnMapping.emailAddress] || "",
-            reportLink: row[columnMapping.reportLink] || "",
-            coordinatorDetails: row[columnMapping.coordinatorDetails] || "",
-            feedback: row[columnMapping.feedback] || "",
-            mediaLink: row[columnMapping.mediaLink] || "",
-            newspaperPhotos: row[columnMapping.newspaperPhotos] || "",
-            photosVideos: row[columnMapping.photosVideos] || "",
+            emailAddress: row[columnMapping.emailAddress]?.toString().trim() || "",
+            reportLink: row[columnMapping.reportLink]?.toString().trim() || "",
+            coordinatorDetails: row[columnMapping.coordinatorDetails]?.toString().trim() || "",
+            feedback: row[columnMapping.feedback]?.toString().trim() || "",
+            mediaLink: row[columnMapping.mediaLink]?.toString().trim() || "",
+            newspaperPhotos: row[columnMapping.newspaperPhotos]?.toString().trim() || "",
+            photosVideos: row[columnMapping.photosVideos]?.toString().trim() || "",
             // For DRSC display
             udiseCode: "N/A",
-            district: extractDistrict(row[columnMapping.stateDistrict] || ""),
+            district: extractDistrict(row[columnMapping.stateDistrict]?.toString().trim() || ""),
             validUdiseCode: "Yes",
             approved: Math.random() > 0.3 ? "✓" : "X",
             duplicatedFrom: "-",
@@ -105,6 +153,19 @@ const App = () => {
       }
 
       setData(apiData);
+      
+      // Calculate summary statistics
+      const stats = {
+        totalInstitutes: apiData.length,
+        totalParticipants: apiData.reduce((sum, item) => sum + (item.totalParticipants || 0), 0),
+        totalGirls: apiData.reduce((sum, item) => sum + (item.totalGirls || 0), 0),
+        totalFaculty: apiData.reduce((sum, item) => sum + (item.totalFaculty || 0), 0),
+        totalEvents: apiData.length // Each institute entry represents one event
+      };
+      
+      setSummaryStats(stats);
+      console.log("Summary Statistics:", stats); // For verification
+      
       setCurrentPage(1);
       setLoading(false);
     } catch (err) {
@@ -355,24 +416,6 @@ const App = () => {
                     </select>
                   </div>
 
-                  {/* Valid Udise Code */}
-                  {/* <div className="hidden lg:block">
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Valid Udise</label>
-                    <select
-                      value={validUdiseFilter}
-                      onChange={(e) => {
-                        setValidUdiseFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    >
-                      <option>Duplicated</option>
-                      <option>All</option>
-                      <option>Valid</option>
-                      <option>Invalid</option>
-                    </select>
-                  </div> */}
-
                   {/* UDISE Updated */}
                   <div className="hidden xl:block">
                     <label className="block text-xs font-medium text-gray-500 uppercase mb-1">UDISE Updated</label>
@@ -416,30 +459,28 @@ const App = () => {
             <div className="p-8 text-center text-red-600">Error fetching API. Please try again.</div>
           )}
 
-          {/* Summary Cards - Responsive grid */}
+          {/* Summary Cards - Responsive grid with corrected statistics */}
           {!loading && !error && data.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 p-4 sm:p-6">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 p-4 sm:p-6">
               <div className="bg-blue-50 p-2 sm:p-4 rounded-lg">
                 <p className="text-xs sm:text-sm text-gray-600">Total Institutes</p>
-                <p className="text-lg sm:text-2xl font-bold text-blue-600">{data.length}</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-600">{summaryStats.totalInstitutes}</p>
               </div>
               <div className="bg-green-50 p-2 sm:p-4 rounded-lg">
                 <p className="text-xs sm:text-sm text-gray-600">Total Participants</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-600">
-                  {data.reduce((sum, item) => sum + (parseInt(item.totalParticipants) || 0), 0)}
-                </p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">{summaryStats.totalParticipants}</p>
               </div>
               <div className="bg-pink-50 p-2 sm:p-4 rounded-lg">
                 <p className="text-xs sm:text-sm text-gray-600">Girls Trained</p>
-                <p className="text-lg sm:text-2xl font-bold text-pink-600">
-                  {data.reduce((sum, item) => sum + (parseInt(item.totalGirls) || 0), 0)}
-                </p>
+                <p className="text-lg sm:text-2xl font-bold text-pink-600">{summaryStats.totalGirls}</p>
               </div>
               <div className="bg-purple-50 p-2 sm:p-4 rounded-lg">
                 <p className="text-xs sm:text-sm text-gray-600">Faculty Trained</p>
-                <p className="text-lg sm:text-2xl font-bold text-purple-600">
-                  {data.reduce((sum, item) => sum + (parseInt(item.totalFaculty) || 0), 0)}
-                </p>
+                <p className="text-lg sm:text-2xl font-bold text-purple-600">{summaryStats.totalFaculty}</p>
+              </div>
+              <div className="bg-orange-50 p-2 sm:p-4 rounded-lg">
+                <p className="text-xs sm:text-sm text-gray-600">Total Events</p>
+                <p className="text-lg sm:text-2xl font-bold text-orange-600">{summaryStats.totalEvents}</p>
               </div>
             </div>
           )}
