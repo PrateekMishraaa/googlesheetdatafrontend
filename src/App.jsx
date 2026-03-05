@@ -17,9 +17,11 @@ const App = () => {
   const [validUdiseFilter, setValidUdiseFilter] = useState("Duplicated");
   const [udiseUpdated, setUdiseUpdated] = useState("All schools");
   const [expandedRow, setExpandedRow] = useState(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [hoveredCard, setHoveredCard] = useState(null);
-  const [searchFocused, setSearchFocused] = useState(false);
+  
+  // Photo gallery state
+  const [showPhotoGallery, setShowPhotoGallery] = useState(false);
+  const [currentPhotoUrls, setCurrentPhotoUrls] = useState([]);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   
   // Summary statistics
   const [summaryStats, setSummaryStats] = useState({
@@ -46,19 +48,6 @@ const App = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Scroll to top button visibility
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 400);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   // Define column mapping based on your API data structure
   const columnMapping = {
@@ -110,6 +99,40 @@ const App = () => {
              instituteName.toString().includes("Institute")));
   };
 
+  // Extract Google Drive image IDs from links
+  const extractDriveImageIds = (link) => {
+    if (!link) return [];
+    
+    const driveIds = [];
+    
+    // Handle multiple links separated by commas, spaces, or newlines
+    const links = link.split(/[,\s\n]+/).filter(l => l.trim());
+    
+    links.forEach(url => {
+      // Match Google Drive image links
+      const patterns = [
+        /(?:drive\.google\.com\/file\/d\/)([^\/?#]+)/,
+        /(?:drive\.google\.com\/open\?id=)([^&#]+)/,
+        /(?:docs\.google\.com\/uc\?id=)([^&#]+)/,
+        /(?:drive\.google\.com\/uc\?export=view&id=)([^&#]+)/
+      ];
+      
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+          driveIds.push({
+            id: match[1],
+            thumbnail: `https://drive.google.com/thumbnail?id=${match[1]}&sz=w400`,
+            view: `https://drive.google.com/file/d/${match[1]}/preview`
+          });
+          break;
+        }
+      }
+    });
+    
+    return driveIds;
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -152,6 +175,9 @@ const App = () => {
             validUdiseCode: "Yes",
             approved: Math.random() > 0.3 ? "✓" : "X",
             duplicatedFrom: "-",
+            // Extract photo IDs from media links
+            photoIds: extractDriveImageIds(row[columnMapping.photosVideos]?.toString().trim() || ""),
+            newspaperPhotoIds: extractDriveImageIds(row[columnMapping.newspaperPhotos]?.toString().trim() || "")
           }));
         }
       }
@@ -198,7 +224,6 @@ const App = () => {
         row.instituteName?.toLowerCase().includes(instituteSearch.toLowerCase());
       const matchesDistrict = selectedDistrict === "All districts" || 
         row.district === selectedDistrict;
-      
       return matchesInstitute && matchesDistrict;
     });
   }, [data, instituteSearch, selectedDistrict]);
@@ -215,341 +240,278 @@ const App = () => {
     setExpandedRow(expandedRow === id ? null : id);
   };
 
+  const openPhotoGallery = (photos, startIndex = 0) => {
+    setCurrentPhotoUrls(photos);
+    setCurrentPhotoIndex(startIndex);
+    setShowPhotoGallery(true);
+  };
+
   const formatAmbassadors = (ambassadors) => {
     if (!ambassadors) return "No data";
     return ambassadors.split('\n').map((line, i) => (
-      <div key={i} className="text-xs sm:text-sm py-2 border-b last:border-0 whitespace-pre-wrap break-words hover:bg-indigo-50 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-sm rounded px-2">
-        <span className="inline-block w-5 h-5 bg-indigo-100 rounded-full text-center text-indigo-600 mr-2 text-xs">
-          {i + 1}
-        </span>
-        {line}
-      </div>
+      <div key={i} className="text-xs sm:text-sm py-1 border-b last:border-0 whitespace-pre-wrap break-words">{line}</div>
     ));
   };
 
-  // Animation classes with staggered delays
-  const getAnimationClass = (index, baseClass) => {
-    const animations = {
-      fadeInUp: `animate-fadeInUp opacity-0 [animation-fill-mode:forwards] [animation-delay:${index * 100}ms]`,
-      slideIn: `animate-slideIn opacity-0 [animation-fill-mode:forwards] [animation-delay:${index * 100}ms]`,
-      scaleIn: `animate-scaleIn opacity-0 [animation-fill-mode:forwards] [animation-delay:${index * 100}ms]`,
-      rotateIn: `animate-rotateIn opacity-0 [animation-fill-mode:forwards] [animation-delay:${index * 100}ms]`
-    };
-    return animations[baseClass] || animations.fadeInUp;
-  };
-
-  const StatCard = ({ title, value, color, icon, delay, index }) => {
-    const colors = {
-      blue: {
-        bg: "from-blue-500 to-indigo-600",
-        light: "bg-blue-50",
-        text: "text-blue-600",
-        border: "border-blue-200",
-        shadow: "shadow-blue-200"
-      },
-      green: {
-        bg: "from-green-500 to-emerald-600",
-        light: "bg-green-50",
-        text: "text-green-600",
-        border: "border-green-200",
-        shadow: "shadow-green-200"
-      },
-      pink: {
-        bg: "from-pink-500 to-rose-600",
-        light: "bg-pink-50",
-        text: "text-pink-600",
-        border: "border-pink-200",
-        shadow: "shadow-pink-200"
-      },
-      purple: {
-        bg: "from-purple-500 to-violet-600",
-        light: "bg-purple-50",
-        text: "text-purple-600",
-        border: "border-purple-200",
-        shadow: "shadow-purple-200"
-      },
-      orange: {
-        bg: "from-orange-500 to-amber-600",
-        light: "bg-orange-50",
-        text: "text-orange-600",
-        border: "border-orange-200",
-        shadow: "shadow-orange-200"
-      }
-    };
+  // Photo Gallery Modal Component
+  const PhotoGalleryModal = () => {
+    if (!showPhotoGallery || currentPhotoUrls.length === 0) return null;
 
     return (
-      <div 
-        className={`relative group ${getAnimationClass(index, 'scaleIn')}`}
-        onMouseEnter={() => setHoveredCard(title)}
-        onMouseLeave={() => setHoveredCard(null)}
-      >
-        {/* Animated background gradient */}
-        <div className={`absolute inset-0 bg-gradient-to-r ${colors[color].bg} rounded-2xl opacity-0 group-hover:opacity-10 transition-opacity duration-500 blur-xl`}></div>
+      <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
+        <button 
+          onClick={() => setShowPhotoGallery(false)}
+          className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-50"
+        >
+          &times;
+        </button>
         
-        {/* Main card */}
-        <div className={`relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 transform transition-all duration-500 
-                        group-hover:scale-105 group-hover:-translate-y-2 group-hover:shadow-2xl 
-                        border border-gray-100 overflow-hidden`}>
-          
-          {/* Animated shine effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent 
-                          translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 font-medium mb-1">{title}</p>
-              <p className={`text-3xl font-bold ${colors[color].text} transition-all duration-300 
-                            group-hover:scale-110 group-hover:translate-x-1`}>
-                {value.toLocaleString()}
-              </p>
-              
-              {/* Animated progress bar */}
-              <div className="mt-3 w-24 h-1 bg-gray-200 rounded-full overflow-hidden">
-                <div className={`h-full bg-gradient-to-r ${colors[color].bg} rounded-full transition-all duration-1000 
-                                ${hoveredCard === title ? 'w-full' : 'w-2/3'}`}></div>
-              </div>
-            </div>
-            
-            {/* Animated icon container */}
-            <div className={`relative ${colors[color].light} p-4 rounded-2xl group-hover:rotate-12 transition-transform duration-300`}>
-              <div className={`absolute inset-0 bg-gradient-to-r ${colors[color].bg} rounded-2xl opacity-0 group-hover:opacity-20 blur-md transition-opacity`}></div>
-              <span className={`text-3xl relative z-10 animate-float`}>{icon}</span>
-            </div>
+        <div className="relative w-full max-w-6xl max-h-screen">
+          {/* Main Image/Preview */}
+          <div className="relative h-[80vh] flex items-center justify-center">
+            {currentPhotoUrls[currentPhotoIndex]?.view ? (
+              <iframe
+                src={currentPhotoUrls[currentPhotoIndex].view}
+                className="w-full h-full rounded-lg"
+                allowFullScreen
+              />
+            ) : (
+              <img
+                src={currentPhotoUrls[currentPhotoIndex]?.thumbnail}
+                alt={`Photo ${currentPhotoIndex + 1}`}
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
+            )}
           </div>
           
-          {/* Decorative elements */}
-          <div className={`absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r ${colors[color].bg} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left`}></div>
+          {/* Navigation Arrows */}
+          {currentPhotoUrls.length > 1 && (
+            <>
+              <button
+                onClick={() => setCurrentPhotoIndex(prev => (prev > 0 ? prev - 1 : currentPhotoUrls.length - 1))}
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-3xl w-12 h-12 rounded-full flex items-center justify-center"
+              >
+                ‹
+              </button>
+              <button
+                onClick={() => setCurrentPhotoIndex(prev => (prev < currentPhotoUrls.length - 1 ? prev + 1 : 0))}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-3xl w-12 h-12 rounded-full flex items-center justify-center"
+              >
+                ›
+              </button>
+            </>
+          )}
+          
+          {/* Thumbnail Strip */}
+          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 overflow-x-auto px-4 py-2">
+            {currentPhotoUrls.map((photo, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentPhotoIndex(idx)}
+                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                  idx === currentPhotoIndex ? 'border-blue-500 scale-110' : 'border-transparent opacity-60 hover:opacity-100'
+                }`}
+              >
+                <img src={photo.thumbnail} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );
   };
 
   const MobileCard = ({ row, index }) => (
-    <div 
-      className={`relative group ${getAnimationClass(index, 'fadeInUp')}`}
-      onMouseEnter={() => setHoveredCard(row.id)}
-      onMouseLeave={() => setHoveredCard(null)}
-    >
-      {/* Background glow effect */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500"></div>
-      
-      <div className="relative bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-5 mb-4 transform transition-all duration-500 
-                      hover:scale-[1.02] hover:-translate-y-1 hover:shadow-2xl border border-gray-100">
-        
-        {/* Animated border gradient */}
-        <div className="absolute inset-0 rounded-2xl p-[2px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-          <div className="absolute inset-0 bg-white rounded-2xl"></div>
-        </div>
-        
-        <div className="relative z-10">
-          <div className="flex justify-between items-start mb-3">
-            <span className="px-3 py-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full text-xs font-medium shadow-lg">
-              #{startIndex + index + 1}
-            </span>
-            <button 
-              onClick={() => toggleRowExpansion(row.id)}
-              className="text-indigo-600 text-sm font-medium hover:text-indigo-800 transition-all flex items-center gap-1 group/btn"
-            >
-              <span>{expandedRow === row.id ? "Show Less" : "View Details"}</span>
-              <span className={`transform transition-transform duration-300 ${expandedRow === row.id ? 'rotate-180' : 'group-hover/btn:translate-x-1'}`}>
-                {expandedRow === row.id ? "↑" : "→"}
-              </span>
-            </button>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="relative">
-              <h3 className="font-bold text-gray-900 text-lg group-hover:text-transparent group-hover:bg-clip-text 
-                           group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all">
-                {row.instituteName}
-              </h3>
-              <p className="text-sm text-gray-600 mt-1 line-clamp-2 flex items-start gap-1">
-                <span className="text-gray-400">📍</span>
-                {row.address}
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "Participants", value: row.totalParticipants, color: "blue", icon: "👥" },
-                { label: "Girls", value: row.totalGirls, color: "pink", icon: "👧" },
-                { label: "Faculty", value: row.totalFaculty, color: "purple", icon: "👨‍🏫" }
-              ].map((item, i) => (
-                <div key={i} className={`relative group/stat overflow-hidden rounded-xl bg-gradient-to-br from-${item.color}-50 to-${item.color}-100 p-2 text-center`}>
-                  <div className={`absolute inset-0 bg-gradient-to-r from-${item.color}-500 to-${item.color}-600 opacity-0 group-hover/stat:opacity-10 transition-opacity duration-300`}></div>
-                  <span className="text-xs text-gray-600 block">{item.label}</span>
-                  <span className={`text-sm font-bold text-${item.color}-600 group-hover/stat:scale-110 inline-block transition-transform`}>
-                    {item.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-            
-            <div className="flex items-center justify-between text-xs border-t pt-2">
-              <span className="flex items-center gap-1 text-gray-600">
-                <span className="animate-pulse-slow">📍</span> {row.district}
-              </span>
-              <span className="flex items-center gap-1 text-gray-600">
-                <span className="animate-pulse-slow">📅</span> {row.eventDate}
-              </span>
-            </div>
-          </div>
-          
-          {expandedRow === row.id && (
-            <div className="mt-4 pt-4 border-t border-gray-200 animate-slideDown">
-              <MobileExpandedDetails row={row} />
-            </div>
-          )}
-        </div>
+    <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-3">
+        <span className="text-xs text-gray-400">#{startIndex + index + 1}</span>
+        <button 
+          onClick={() => toggleRowExpansion(row.id)}
+          className="text-blue-600 text-sm font-medium hover:text-blue-800 transition-colors"
+        >
+          {expandedRow === row.id ? "▼ Show Less" : "▶ View Details"}
+        </button>
       </div>
+      
+      <div className="space-y-3">
+        <div className="border-l-4 border-blue-500 pl-3">
+          <h3 className="font-semibold text-gray-900">{row.instituteName}</h3>
+          <p className="text-xs text-gray-500 mt-1">{row.address}</p>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded-lg text-center">
+            <span className="text-xs text-gray-600 block">Participants</span>
+            <span className="text-base font-bold text-blue-600">{row.totalParticipants}</span>
+          </div>
+          <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-2 rounded-lg text-center">
+            <span className="text-xs text-gray-600 block">Girls</span>
+            <span className="text-base font-bold text-pink-600">{row.totalGirls}</span>
+          </div>
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded-lg text-center">
+            <span className="text-xs text-gray-600 block">Faculty</span>
+            <span className="text-base font-bold text-purple-600">{row.totalFaculty}</span>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span className="flex items-center gap-1">
+            <span>📍</span> {row.district}
+          </span>
+          <span className="flex items-center gap-1">
+            <span>📅</span> {row.eventDate}
+          </span>
+        </div>
+
+        {/* Photo preview on mobile */}
+        {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
+          <div className="mt-2">
+            <div className="flex gap-1 overflow-x-auto pb-1">
+              {row.photoIds?.slice(0, 3).map((photo, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => openPhotoGallery(row.photoIds, idx)}
+                  className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition"
+                >
+                  <img src={photo.thumbnail} alt={`Event ${idx + 1}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+              {row.newspaperPhotoIds?.length > 0 && (
+                <button
+                  onClick={() => openPhotoGallery(row.newspaperPhotoIds)}
+                  className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-xs text-gray-600 hover:bg-gray-200 transition"
+                >
+                  📰 {row.newspaperPhotoIds.length}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {expandedRow === row.id && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <MobileExpandedDetails row={row} />
+        </div>
+      )}
     </div>
   );
 
   const MobileExpandedDetails = ({ row }) => (
     <div className="space-y-4">
-      <div className="relative group/details">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl opacity-0 group-hover/details:opacity-10 transition-opacity"></div>
-        <div className="relative bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-200">
-          <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <span className="w-1 h-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-pulse"></span>
-            Event Details
-          </h4>
-          <div className="space-y-2 text-sm">
-            <p className="flex items-start gap-2 group/item">
-              <span className="font-medium min-w-[70px] text-gray-600">Email:</span>
-              <span className="text-gray-800 break-all group-hover/item:text-blue-600 transition-colors">{row.email}</span>
-            </p>
-            <p className="flex items-start gap-2 group/item">
-              <span className="font-medium min-w-[70px] text-gray-600">Coordinator:</span>
-              <span className="text-gray-800 group-hover/item:text-purple-600 transition-colors">{row.coordinatorDetails}</span>
-            </p>
-            <p className="flex items-start gap-2 group/item">
-              <span className="font-medium min-w-[70px] text-gray-600">Score:</span>
-              <span className="text-gray-800 group-hover/item:text-green-600 transition-colors">{row.score}</span>
-            </p>
-          </div>
+      <div>
+        <h4 className="font-semibold text-sm mb-2 text-gray-700">Event Details</h4>
+        <div className="space-y-2 text-sm bg-gray-50 p-3 rounded-lg">
+          <p><span className="font-medium text-gray-600">Email:</span> {row.email || 'N/A'}</p>
+          <p><span className="font-medium text-gray-600">Coordinator:</span> {row.coordinatorDetails || 'N/A'}</p>
+          <p><span className="font-medium text-gray-600">Score:</span> {row.score}</p>
         </div>
       </div>
       
-      <div className="relative group/details">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl opacity-0 group-hover/details:opacity-10 transition-opacity"></div>
-        <div className="relative bg-gradient-to-br from-gray-50 to-white p-4 rounded-xl border border-gray-200">
-          <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <span className="w-1 h-4 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full animate-pulse"></span>
-            Campus Ambassadors
-          </h4>
-          <div className="max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-purple-100 rounded-lg">
-            {formatAmbassadors(row.campusAmbassadors)}
-          </div>
+      <div>
+        <h4 className="font-semibold text-sm mb-2 text-gray-700">Campus Ambassadors</h4>
+        <div className="bg-gray-50 p-3 rounded-lg max-h-40 overflow-y-auto">
+          {formatAmbassadors(row.campusAmbassadors)}
         </div>
       </div>
+      
+      {/* All Photos section in expanded view */}
+      {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
+        <div>
+          <h4 className="font-semibold text-sm mb-2 text-gray-700">Photos & Media</h4>
+          <div className="space-y-3">
+            {row.photoIds?.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Event Photos ({row.photoIds.length})</p>
+                <div className="grid grid-cols-4 gap-1">
+                  {row.photoIds.map((photo, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => openPhotoGallery(row.photoIds, idx)}
+                      className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition"
+                    >
+                      <img src={photo.thumbnail} alt={`Event ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {row.newspaperPhotoIds?.length > 0 && (
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Newspaper Clippings ({row.newspaperPhotoIds.length})</p>
+                <div className="grid grid-cols-4 gap-1">
+                  {row.newspaperPhotoIds.map((photo, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => openPhotoGallery(row.newspaperPhotoIds, idx)}
+                      className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition"
+                    >
+                      <img src={photo.thumbnail} alt={`Newspaper ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {row.reportLink && (
-        <a 
-          href={row.reportLink} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="relative group/link block"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl opacity-0 group-hover/link:opacity-20 transition-opacity blur"></div>
-          <div className="relative flex items-center gap-3 text-green-600 bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl hover:from-green-100 hover:to-emerald-100 transition-all border border-green-200 group-hover/link:scale-[1.02]">
-            <span className="text-2xl group-hover/link:rotate-12 transition-transform">📄</span>
-            <span className="text-sm font-medium">View Full Report</span>
-            <span className="ml-auto group-hover/link:translate-x-1 transition-transform">→</span>
-          </div>
+        <a href={row.reportLink} target="_blank" rel="noopener noreferrer" 
+           className="inline-flex items-center gap-2 text-blue-600 text-sm bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
+          <span>📄</span> View Report
         </a>
       )}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      {/* Animated background particles */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute rounded-full bg-gradient-to-r from-blue-400/20 to-purple-400/20 animate-float-particle"
-            style={{
-              width: `${Math.random() * 300 + 50}px`,
-              height: `${Math.random() * 300 + 50}px`,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${Math.random() * 10 + 10}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Scroll to top button */}
-      {showScrollTop && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-8 right-8 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:scale-110 hover:rotate-12 z-50 group animate-bounce-slow"
-        >
-          <span className="block transform group-hover:-translate-y-1 transition-transform">↑</span>
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 to-indigo-400 opacity-0 group-hover:opacity-30 blur-xl transition-opacity"></div>
-        </button>
-      )}
-
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 relative z-10">
-        <div className="bg-white/70 backdrop-blur-xl shadow-2xl rounded-3xl overflow-hidden border border-white/50 relative group/main">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <PhotoGalleryModal />
+      
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
+        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl overflow-hidden border border-gray-200">
           
-          {/* Animated header gradient */}
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-0 group-hover/main:opacity-5 transition-opacity duration-1000"></div>
-          
-          {/* Header with animated gradient */}
-          <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6 sm:p-8 overflow-hidden">
-            <div className="absolute inset-0 bg-grid-white/10"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] animate-shimmer"></div>
-            
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
-              <div className="text-white">
-                <h1 className="text-3xl sm:text-4xl font-bold mb-2 animate-gradient-x bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent bg-300%">
-                  Disaster Ready School Dashboard
-                </h1>
-                <p className="text-blue-100 text-sm sm:text-base flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 bg-green-300 rounded-full animate-pulse"></span>
-                  Real-time monitoring of campaign submissions
-                </p>
+          {/* Header with gradient */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-white">Disaster Ready School Dashboard</h1>
+                <p className="text-xs sm:text-sm text-blue-100 mt-1">Real-time monitoring of school preparedness campaigns</p>
               </div>
               
               <button 
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="sm:hidden bg-white/20 p-3 rounded-xl hover:bg-white/30 transition-all backdrop-blur-sm border border-white/30"
+                className="sm:hidden bg-white/20 p-2 rounded-lg text-white hover:bg-white/30 transition"
               >
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
             </div>
           </div>
 
-          {/* Filters Section with enhanced design */}
-          <div className="border-b border-gray-200 bg-white/80 backdrop-blur-sm">
+          {/* Filters Section with modern design */}
+          <div className="border-b border-gray-200 bg-white">
             <div className="p-4 sm:p-6">
               <button 
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center justify-between w-full sm:hidden mb-2 text-gray-700 group"
+                className="flex items-center justify-between w-full sm:hidden mb-2 text-gray-700"
               >
-                <span className="font-semibold text-lg">Filters & Search</span>
-                <span className={`transform transition-all duration-500 ${showFilters ? 'rotate-180' : ''} group-hover:scale-110`}>
-                  ▼
-                </span>
+                <h2 className="text-lg font-semibold">Filters & Controls</h2>
+                <span className="text-2xl">{showFilters ? "−" : "+"}</span>
               </button>
               
-              <div className={`${showFilters ? 'block' : 'hidden'} sm:block animate-slideDown`}>
-                <h2 className="text-lg font-semibold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-4 hidden sm:block">
-                  Advanced Filters
-                </h2>
+              <div className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
+                <h2 className="text-lg font-semibold text-gray-700 mb-4 hidden sm:block">Filters & Controls</h2>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                   <div className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
                     <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
                       Search Institute
                     </label>
-                    <div className="relative group/input">
+                    <div className="relative">
                       <input
                         type="text"
                         placeholder="Type institute name..."
@@ -558,40 +520,23 @@ const App = () => {
                           setInstituteSearch(e.target.value);
                           setCurrentPage(1);
                         }}
-                        onFocus={() => setSearchFocused(true)}
-                        onBlur={() => setSearchFocused(false)}
-                        className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none transition-all pl-11
-                                  ${searchFocused 
-                                    ? 'border-blue-500 ring-4 ring-blue-100 shadow-lg' 
-                                    : 'border-gray-200 hover:border-blue-300'}`}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10"
                       />
-                      <span className={`absolute left-4 top-3.5 text-gray-400 transition-all duration-300 
-                                      ${searchFocused ? 'scale-110 text-blue-500' : ''}`}>
-                        🔍
-                      </span>
-                      
-                      {/* Animated search suggestions */}
-                      {searchFocused && instituteSearch && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-50 animate-slideDown">
-                          <div className="p-3 text-sm text-gray-600">
-                            Press Enter to search...
-                          </div>
-                        </div>
-                      )}
+                      <svg className="w-4 h-4 absolute left-3 top-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-                      District
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">District</label>
                     <select
                       value={selectedDistrict}
                       onChange={(e) => {
                         setSelectedDistrict(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all appearance-none bg-white hover:border-blue-300"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       {districts.map(district => (
                         <option key={district} value={district}>{district}</option>
@@ -600,231 +545,222 @@ const App = () => {
                   </div>
 
                   <div className="hidden sm:block">
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-                      Date Range
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Select date"
-                        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50 cursor-not-allowed"
-                        disabled
-                      />
-                      <span className="absolute right-3 top-3 text-gray-400">📅</span>
-                    </div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Date Range</label>
+                    <input
+                      type="text"
+                      placeholder="Coming soon"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-gray-50 cursor-not-allowed"
+                      disabled
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-                      Status
-                    </label>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</label>
                     <select
                       value={selectedStatus}
                       onChange={(e) => {
                         setSelectedStatus(e.target.value);
                         setCurrentPage(1);
                       }}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option>All statuses</option>
                       <option>Approved</option>
                       <option>Not Approved</option>
                     </select>
                   </div>
+
+                  <div className="hidden xl:block">
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">UDISE Updated</label>
+                    <select
+                      value={udiseUpdated}
+                      onChange={(e) => {
+                        setUdiseUpdated(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option>All schools</option>
+                      <option>Updated</option>
+                      <option>Not updated</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-6 gap-3">
+                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-4 gap-3">
                   <button
                     onClick={fetchData}
-                    className="relative group/btn overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-xl text-sm font-medium hover:shadow-2xl transition-all transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300"
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-lg text-sm hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000"></div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300 blur"></div>
-                    <span className="relative flex items-center justify-center gap-2">
-                      <svg className="w-4 h-4 animate-spin-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Refresh Data
-                    </span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh Data
                   </button>
-                  
-                  <button className="relative group/btn overflow-hidden bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-xl text-sm font-medium hover:shadow-2xl transition-all transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-300">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000"></div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300 blur"></div>
-                    <span className="relative flex items-center justify-center gap-2">
-                      <span>📥</span> Download Report ({filteredData.length})
-                    </span>
+                  <button className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-2.5 rounded-lg text-sm hover:from-green-700 hover:to-green-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                    <span>📥</span> Download Report ({filteredData.length})
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Loading State with enhanced animation */}
+          {/* Loading/Error States with animations */}
           {loading && (
-            <div className="p-16 text-center">
-              <div className="relative inline-block">
-                <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full animate-pulse"></div>
-                </div>
-              </div>
-              <p className="mt-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 font-medium animate-pulse">
-                Loading dashboard data...
-              </p>
-              <div className="mt-4 flex justify-center gap-2">
-                {[...Array(3)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-2 h-2 bg-blue-600 rounded-full animate-bounce"
-                    style={{ animationDelay: `${i * 0.2}s` }}
-                  ></div>
-                ))}
-              </div>
+            <div className="p-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+              <p className="mt-2 text-blue-600">Loading data...</p>
             </div>
           )}
 
-          {/* Error State with enhanced animation */}
           {error && (
-            <div className="p-16 text-center animate-shake">
-              <div className="relative inline-block">
-                <div className="absolute inset-0 bg-red-200 rounded-full animate-ping opacity-20"></div>
-                <div className="relative bg-gradient-to-br from-red-100 to-red-200 rounded-full p-8">
-                  <span className="text-5xl animate-wiggle">⚠️</span>
-                </div>
-              </div>
-              <p className="mt-6 text-red-600 font-medium text-lg">Error fetching API. Please try again.</p>
+            <div className="p-12 text-center">
+              <div className="text-red-500 text-5xl mb-3">⚠️</div>
+              <p className="text-red-600 font-medium">Error fetching API. Please try again.</p>
               <button
                 onClick={fetchData}
-                className="mt-6 bg-gradient-to-r from-red-600 to-red-700 text-white px-8 py-3 rounded-xl hover:shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
+                className="mt-4 bg-red-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-red-700 transition"
               >
-                Retry Connection
+                Retry
               </button>
             </div>
           )}
 
-          {/* Summary Cards with enhanced design */}
+          {/* Summary Cards with gradients */}
           {!loading && !error && data.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-4 sm:p-6">
-              <StatCard title="Total Institutes" value={summaryStats.totalInstitutes} color="blue" icon="🏫" delay={0} index={0} />
-              <StatCard title="Total Participants" value={summaryStats.totalParticipants} color="green" icon="👥" delay={100} index={1} />
-              <StatCard title="Girls Trained" value={summaryStats.totalGirls} color="pink" icon="👧" delay={200} index={2} />
-              <StatCard title="Faculty Trained" value={summaryStats.totalFaculty} color="purple" icon="👨‍🏫" delay={300} index={3} />
-              <StatCard title="Total Events" value={summaryStats.totalEvents} color="orange" icon="📊" delay={400} index={4} />
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 sm:p-6">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl border border-blue-200">
+                <p className="text-xs sm:text-sm text-blue-700 font-medium">Institutes</p>
+                <p className="text-lg sm:text-2xl font-bold text-blue-800">{summaryStats.totalInstitutes}</p>
+              </div>
+              <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-4 rounded-xl border border-green-200">
+                <p className="text-xs sm:text-sm text-green-700 font-medium">Participants</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-800">{summaryStats.totalParticipants}</p>
+              </div>
+              <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-3 sm:p-4 rounded-xl border border-pink-200">
+                <p className="text-xs sm:text-sm text-pink-700 font-medium">Girls</p>
+                <p className="text-lg sm:text-2xl font-bold text-pink-800">{summaryStats.totalGirls}</p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 sm:p-4 rounded-xl border border-purple-200">
+                <p className="text-xs sm:text-sm text-purple-700 font-medium">Faculty</p>
+                <p className="text-lg sm:text-2xl font-bold text-purple-800">{summaryStats.totalFaculty}</p>
+              </div>
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-3 sm:p-4 rounded-xl border border-orange-200">
+                <p className="text-xs sm:text-sm text-orange-700 font-medium">Events</p>
+                <p className="text-lg sm:text-2xl font-bold text-orange-800">{summaryStats.totalEvents}</p>
+              </div>
             </div>
           )}
 
-          {/* Table/View with enhanced design */}
+          {/* Desktop Table View with modern styling */}
           {currentData.length > 0 && (
             <div>
-              {/* Desktop Table with glass morphism */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50">
+                  <thead className="bg-gray-50">
                     <tr>
-                      {["S.No", "Institute Name", "Address", "Participants", "Girls", "Faculty", "District", "Event Date", "Actions"].map((header, idx) => (
-                        <th key={idx} className="px-4 py-4 text-left text-xs font-semibold text-transparent bg-clip-text bg-gradient-to-r from-gray-700 to-gray-900 uppercase tracking-wider">
-                          {header}
-                        </th>
-                      ))}
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Institute</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participants</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Girls</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Faculty</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">District</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Media</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white/80 backdrop-blur-sm divide-y divide-gray-200">
+                  <tbody className="bg-white divide-y divide-gray-200">
                     {currentData.map((row, index) => (
                       <React.Fragment key={row.id}>
-                        <tr 
-                          className="group/row hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 cursor-pointer transition-all duration-500 transform hover:scale-[1.01] hover:shadow-xl relative"
-                          onClick={() => toggleRowExpansion(row.id)}
-                        >
-                          {/* Animated row highlight */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover/row:opacity-5 transition-opacity duration-500"></div>
-                          
-                          <td className="px-4 py-4 text-sm text-gray-900 align-top relative">
-                            <span className="font-medium bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                              {startIndex + index + 1}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-sm font-semibold text-gray-900 align-top whitespace-normal break-words max-w-xs relative group/cell">
+                        <tr className={`hover:bg-gray-50 transition-colors cursor-pointer ${expandedRow === row.id ? 'bg-blue-50' : ''}`} 
+                            onClick={() => toggleRowExpansion(row.id)}>
+                          <td className="px-6 py-4 text-sm text-gray-500 align-top">{startIndex + index + 1}</td>
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900 align-top max-w-xs">
                             {row.instituteName}
-                            <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover/cell:w-full transition-all duration-300"></div>
                           </td>
-                          <td className="px-4 py-4 text-sm text-gray-600 align-top whitespace-normal break-words max-w-xs relative">
+                          <td className="px-6 py-4 text-sm text-gray-600 align-top max-w-xs break-words">
                             {row.address}
                           </td>
-                          <td className="px-4 py-4 text-sm align-top">
-                            <span className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-medium shadow-lg shadow-blue-200 group-hover/row:scale-110 transition-transform inline-block">
-                              {row.totalParticipants}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-sm align-top">
-                            <span className="bg-gradient-to-r from-pink-500 to-rose-600 text-white px-3 py-1.5 rounded-xl text-xs font-medium shadow-lg shadow-pink-200 group-hover/row:scale-110 transition-transform inline-block">
-                              {row.totalGirls}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-sm align-top">
-                            <span className="bg-gradient-to-r from-purple-500 to-violet-600 text-white px-3 py-1.5 rounded-xl text-xs font-medium shadow-lg shadow-purple-200 group-hover/row:scale-110 transition-transform inline-block">
-                              {row.totalFaculty}
-                            </span>
-                          </td>
-                          <td className="px-4 py-4 text-sm text-gray-900 align-top whitespace-normal break-words relative">
-                            <span className="flex items-center gap-1">
-                              <span className="text-gray-400">📍</span>
+                          <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalParticipants}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalGirls}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalFaculty}</td>
+                          <td className="px-6 py-4 text-sm text-gray-900 align-top">
+                            <span className="px-2 py-1 bg-gray-100 rounded-full text-xs">
                               {row.district}
                             </span>
                           </td>
-                          <td className="px-4 py-4 text-sm text-gray-900 align-top">
-                            <span className="flex items-center gap-1">
-                              <span className="text-gray-400">📅</span>
-                              {row.eventDate}
-                            </span>
+                          <td className="px-6 py-4 text-sm text-gray-600 align-top">{row.eventDate}</td>
+                          <td className="px-6 py-4 text-sm align-top">
+                            {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
+                              <div className="flex gap-1">
+                                {row.photoIds?.length > 0 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openPhotoGallery(row.photoIds);
+                                    }}
+                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded text-xs"
+                                  >
+                                    📸 {row.photoIds.length}
+                                  </button>
+                                )}
+                                {row.newspaperPhotoIds?.length > 0 && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openPhotoGallery(row.newspaperPhotoIds);
+                                    }}
+                                    className="flex items-center gap-1 text-green-600 hover:text-green-800 bg-green-50 px-2 py-1 rounded text-xs"
+                                  >
+                                    📰 {row.newspaperPhotoIds.length}
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </td>
-                          <td className="px-4 py-4 text-sm align-top">
+                          <td className="px-6 py-4 text-sm align-top">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleRowExpansion(row.id);
                               }}
-                              className="relative group/btn text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 font-medium flex items-center gap-1 transition-all hover:gap-2"
+                              className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
                             >
-                              <span>{expandedRow === row.id ? "▼" : "▶"}</span>
-                              Details
-                              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 group-hover/btn:w-full transition-all duration-300"></span>
+                              {expandedRow === row.id ? "▼" : "▶"} Details
                             </button>
                           </td>
                         </tr>
                         {expandedRow === row.id && (
-                          <tr className="bg-gradient-to-r from-indigo-50/90 via-purple-50/90 to-pink-50/90 backdrop-blur-sm animate-slideDown">
-                            <td colSpan="9" className="px-4 py-6">
+                          <tr className="bg-blue-50">
+                            <td colSpan="10" className="px-6 py-6">
                               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 <div className="space-y-4">
-                                  <div className="relative group/details bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-white/50 transform hover:scale-[1.02] transition-all duration-500">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl opacity-0 group-hover/details:opacity-5 transition-opacity"></div>
-                                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                      <span className="w-1.5 h-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-pulse"></span>
+                                  <div className="bg-white p-4 rounded-xl shadow-sm">
+                                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                      <span className="w-1 h-4 bg-blue-500 rounded-full"></span>
                                       Event Details
                                     </h3>
-                                    <div className="space-y-3">
-                                      <p className="whitespace-normal break-words group/item"><span className="font-medium text-gray-600">Email:</span> <span className="text-gray-800 group-hover/item:text-blue-600 transition-colors">{row.email}</span></p>
-                                      <p className="whitespace-normal break-words group/item"><span className="font-medium text-gray-600">Email Address:</span> <span className="text-gray-800 group-hover/item:text-purple-600 transition-colors">{row.emailAddress}</span></p>
-                                      <p className="group/item"><span className="font-medium text-gray-600">Score:</span> <span className="text-gray-800 group-hover/item:text-green-600 transition-colors">{row.score}</span></p>
-                                      <p className="whitespace-normal break-words group/item"><span className="font-medium text-gray-600">Coordinator:</span> <span className="text-gray-800 group-hover/item:text-indigo-600 transition-colors">{row.coordinatorDetails}</span></p>
-                                      <p className="whitespace-normal break-words group/item"><span className="font-medium text-gray-600">Feedback:</span> <span className="text-gray-800 group-hover/item:text-pink-600 transition-colors">{row.feedback || "Not provided"}</span></p>
+                                    <div className="space-y-2">
+                                      <p><span className="font-medium text-gray-600">Email:</span> {row.email || 'N/A'}</p>
+                                      <p><span className="font-medium text-gray-600">Email Address:</span> {row.emailAddress || 'N/A'}</p>
+                                      <p><span className="font-medium text-gray-600">Score:</span> {row.score}</p>
+                                      <p><span className="font-medium text-gray-600">Coordinator:</span> {row.coordinatorDetails || 'N/A'}</p>
+                                      <p><span className="font-medium text-gray-600">Feedback:</span> {row.feedback || 'Not provided'}</p>
                                     </div>
                                   </div>
                                   
-                                  <div className="relative group/details bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-white/50 transform hover:scale-[1.02] transition-all duration-500">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl opacity-0 group-hover/details:opacity-5 transition-opacity"></div>
-                                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                      <span className="w-1.5 h-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full animate-pulse"></span>
-                                      Links & Resources
+                                  <div className="bg-white p-4 rounded-xl shadow-sm">
+                                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                      <span className="w-1 h-4 bg-green-500 rounded-full"></span>
+                                      Links & Reports
                                     </h3>
                                     <div className="space-y-2">
                                       {row.reportLink && (
                                         <a href={row.reportLink} target="_blank" rel="noopener noreferrer" 
-                                           className="group/link flex items-center gap-3 text-blue-600 bg-blue-50/80 p-3 rounded-xl hover:bg-blue-100 transition-all hover:scale-[1.02] hover:shadow-lg">
-                                          <span className="text-xl group-hover/link:rotate-12 transition-transform">📄</span>
-                                          <span className="font-medium">View Report</span>
-                                          <span className="ml-auto group-hover/link:translate-x-1 transition-transform">→</span>
+                                           className="flex items-center gap-2 text-blue-600 hover:underline break-all">
+                                          <span className="text-xl">📄</span> View Report
                                         </a>
                                       )}
                                     </div>
@@ -832,26 +768,97 @@ const App = () => {
                                 </div>
                                 
                                 <div className="space-y-4">
-                                  <div className="relative group/details bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-white/50 transform hover:scale-[1.02] transition-all duration-500">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl opacity-0 group-hover/details:opacity-5 transition-opacity"></div>
-                                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                      <span className="w-1.5 h-6 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full animate-pulse"></span>
+                                  <div className="bg-white p-4 rounded-xl shadow-sm">
+                                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                      <span className="w-1 h-4 bg-purple-500 rounded-full"></span>
                                       Campus Ambassadors
                                     </h3>
-                                    <div className="max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-300 scrollbar-track-purple-100 rounded-xl border border-purple-100">
+                                    <div className="bg-gray-50 p-3 rounded-lg max-h-40 overflow-y-auto">
                                       {formatAmbassadors(row.campusAmbassadors)}
                                     </div>
                                   </div>
                                   
-                                  <div className="relative group/details bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-white/50 transform hover:scale-[1.02] transition-all duration-500">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-amber-600 rounded-2xl opacity-0 group-hover/details:opacity-5 transition-opacity"></div>
-                                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                      <span className="w-1.5 h-6 bg-gradient-to-r from-orange-500 to-amber-600 rounded-full animate-pulse"></span>
-                                      Additional Information
+                                  <div className="bg-white p-4 rounded-xl shadow-sm">
+                                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                      <span className="w-1 h-4 bg-orange-500 rounded-full"></span>
+                                      Additional Info
                                     </h3>
-                                    <p className="whitespace-normal break-words group/item"><span className="font-medium text-gray-600">State & District:</span> <span className="text-gray-800 group-hover/item:text-orange-600 transition-colors">{row.stateDistrict}</span></p>
-                                    <p className="group/item"><span className="font-medium text-gray-600">Date And Time:</span> <span className="text-gray-800 group-hover/item:text-amber-600 transition-colors">{row.timestamp}</span></p>
+                                    <p><span className="font-medium text-gray-600">State & District:</span> {row.stateDistrict}</p>
+                                    <p><span className="font-medium text-gray-600">Timestamp:</span> {row.timestamp}</p>
                                   </div>
+
+                                  {/* Photos in expanded desktop view */}
+                                  {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
+                                    <div className="bg-white p-4 rounded-xl shadow-sm">
+                                      <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                        <span className="w-1 h-4 bg-pink-500 rounded-full"></span>
+                                        Media Gallery
+                                      </h3>
+                                      <div className="space-y-4">
+                                        {row.photoIds?.length > 0 && (
+                                          <div>
+                                            <p className="text-sm font-medium text-gray-600 mb-2">Event Photos</p>
+                                            <div className="grid grid-cols-4 gap-2">
+                                              {row.photoIds.slice(0, 4).map((photo, idx) => (
+                                                <button
+                                                  key={idx}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openPhotoGallery(row.photoIds, idx);
+                                                  }}
+                                                  className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all hover:scale-105"
+                                                >
+                                                  <img src={photo.thumbnail} alt={`Event ${idx + 1}`} className="w-full h-full object-cover" />
+                                                </button>
+                                              ))}
+                                              {row.photoIds.length > 4 && (
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openPhotoGallery(row.photoIds, 4);
+                                                  }}
+                                                  className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-600 hover:bg-gray-200 transition"
+                                                >
+                                                  +{row.photoIds.length - 4}
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        {row.newspaperPhotoIds?.length > 0 && (
+                                          <div>
+                                            <p className="text-sm font-medium text-gray-600 mb-2">Newspaper Clippings</p>
+                                            <div className="grid grid-cols-4 gap-2">
+                                              {row.newspaperPhotoIds.slice(0, 4).map((photo, idx) => (
+                                                <button
+                                                  key={idx}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openPhotoGallery(row.newspaperPhotoIds, idx);
+                                                  }}
+                                                  className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-green-500 transition-all hover:scale-105"
+                                                >
+                                                  <img src={photo.thumbnail} alt={`Newspaper ${idx + 1}`} className="w-full h-full object-cover" />
+                                                </button>
+                                              ))}
+                                              {row.newspaperPhotoIds.length > 4 && (
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openPhotoGallery(row.newspaperPhotoIds, 4);
+                                                  }}
+                                                  className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-600 hover:bg-gray-200 transition"
+                                                >
+                                                  +{row.newspaperPhotoIds.length - 4}
+                                                </button>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </td>
@@ -870,296 +877,83 @@ const App = () => {
                 ))}
               </div>
 
-              {/* Enhanced Pagination */}
-              <div className="px-4 py-6 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 border-t border-gray-200 backdrop-blur-sm">
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <p className="text-sm text-gray-600">
-                    Showing <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">{startIndex + 1}</span> to{' '}
-                    <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                      {Math.min(startIndex + itemsPerPage, filteredData.length)}
-                    </span> of{' '}
-                    <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                      {filteredData.length}
-                    </span> institutes
-                  </p>
+              {/* Pagination with modern design */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <span className="text-sm text-gray-600">
+                  Showing <span className="font-semibold">{startIndex + 1}</span> to{' '}
+                  <span className="font-semibold">{Math.min(startIndex + itemsPerPage, filteredData.length)}</span> of{' '}
+                  <span className="font-semibold">{filteredData.length}</span> institutes
+                </span>
+                
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-white transition-all flex items-center gap-1"
+                  >
+                    <span>←</span> Prev
+                  </button>
                   
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="group/btn relative px-4 py-2 bg-white rounded-xl text-sm disabled:opacity-50 hover:shadow-xl transition-all transform hover:scale-105 disabled:hover:scale-100 border border-gray-200 hover:border-blue-300 overflow-hidden"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover/btn:opacity-10 transition-opacity"></div>
-                      <span className="relative flex items-center gap-1">
-                        ← Prev
-                      </span>
-                    </button>
-                    
-                    <div className="flex gap-2">
-                      {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                        let pageNum;
-                        if (totalPages <= 5) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
-                        } else {
-                          pageNum = currentPage - 2 + i;
-                        }
-                        
-                        return (
-                          <button
-                            key={i}
-                            onClick={() => setCurrentPage(pageNum)}
-                            className={`relative w-10 h-10 rounded-xl text-sm font-medium transition-all duration-300 transform hover:scale-110 group/btn overflow-hidden
-                              ${currentPage === pageNum
-                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-xl shadow-blue-200'
-                                : 'bg-white text-gray-700 hover:shadow-lg border border-gray-200 hover:border-blue-300'
-                              }`}
-                          >
-                            <div className={`absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 ${currentPage !== pageNum && 'group-hover/btn:opacity-10'} transition-opacity`}></div>
-                            <span className="relative">{pageNum}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="group/btn relative px-4 py-2 bg-white rounded-xl text-sm disabled:opacity-50 hover:shadow-xl transition-all transform hover:scale-105 disabled:hover:scale-100 border border-gray-200 hover:border-blue-300 overflow-hidden"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover/btn:opacity-10 transition-opacity"></div>
-                      <span className="relative flex items-center gap-1">
-                        Next →
-                      </span>
-                    </button>
+                  <div className="flex gap-1">
+                    {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${
+                            currentPage === pageNum
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'hover:bg-gray-200'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
                   </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-white transition-all flex items-center gap-1"
+                  >
+                    Next <span>→</span>
+                  </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* No Data State with enhanced design */}
+          {/* No Data State */}
           {!loading && !error && data.length === 0 && (
-            <div className="p-16 text-center animate-fadeIn">
-              <div className="relative inline-block">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-ping opacity-20"></div>
-                <div className="relative bg-gradient-to-br from-blue-100 to-purple-100 rounded-full p-8">
-                  <span className="text-6xl animate-float">📊</span>
-                </div>
-              </div>
-              <h3 className="mt-6 text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                No Data Available
-              </h3>
-              <p className="mt-2 text-gray-500">Click "Refresh Data" to fetch the latest information.</p>
+            <div className="p-12 text-center">
+              <div className="text-gray-400 text-6xl mb-4">📊</div>
+              <h3 className="text-lg font-medium text-gray-700 mb-2">No Data Available</h3>
+              <p className="text-gray-500 mb-4">Click the refresh button to fetch data from the server.</p>
               <button
                 onClick={fetchData}
-                className="mt-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl hover:shadow-2xl transition-all transform hover:scale-105 hover:rotate-1"
+                className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm hover:bg-blue-700 transition inline-flex items-center gap-2"
               >
-                Refresh Now
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh Data
               </button>
             </div>
           )}
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
-        @keyframes scaleIn {
-          from {
-            opacity: 0;
-            transform: scale(0.8);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        @keyframes rotateIn {
-          from {
-            opacity: 0;
-            transform: rotate(-15deg) scale(0.8);
-          }
-          to {
-            opacity: 1;
-            transform: rotate(0) scale(1);
-          }
-        }
-
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
-          20%, 40%, 60%, 80% { transform: translateX(8px); }
-        }
-
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-
-        @keyframes float-particle {
-          0%, 100% { transform: translate(0, 0) rotate(0deg); }
-          25% { transform: translate(20px, -20px) rotate(90deg); }
-          50% { transform: translate(40px, 0) rotate(180deg); }
-          75% { transform: translate(20px, 20px) rotate(270deg); }
-        }
-
-        @keyframes wiggle {
-          0%, 100% { transform: rotate(0deg); }
-          25% { transform: rotate(-10deg); }
-          75% { transform: rotate(10deg); }
-        }
-
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-
-        @keyframes gradient-x {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-
-        .animate-fadeInUp {
-          animation: fadeInUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-
-        .animate-slideIn {
-          animation: slideIn 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-
-        .animate-scaleIn {
-          animation: scaleIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-
-        .animate-rotateIn {
-          animation: rotateIn 0.7s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-
-        .animate-slideDown {
-          animation: slideDown 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-
-        .animate-shake {
-          animation: shake 0.6s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-        }
-
-        .animate-float {
-          animation: float 3s ease-in-out infinite;
-        }
-
-        .animate-float-particle {
-          animation: float-particle linear infinite;
-        }
-
-        .animate-wiggle {
-          animation: wiggle 1s ease-in-out infinite;
-        }
-
-        .animate-shimmer {
-          animation: shimmer 3s infinite;
-        }
-
-        .animate-gradient-x {
-          animation: gradient-x 3s ease infinite;
-          background-size: 300% 100%;
-        }
-
-        .animate-spin-slow {
-          animation: spin 2s linear infinite;
-        }
-
-        .animate-pulse-slow {
-          animation: pulse 3s ease-in-out infinite;
-        }
-
-        .animate-bounce-slow {
-          animation: bounce 2s ease-in-out infinite;
-        }
-
-        .bg-grid-white {
-          background-image: 
-            linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-          background-size: 30px 30px;
-        }
-
-        .bg-300\% {
-          background-size: 300% 100%;
-        }
-
-        .scrollbar-thin::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .scrollbar-thin::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 10px;
-        }
-
-        .scrollbar-thin::-webkit-scrollbar-thumb {
-          background: #c084fc;
-          border-radius: 10px;
-        }
-
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background: #a855f7;
-        }
-
-        .scrollbar-thumb-purple-300::-webkit-scrollbar-thumb {
-          background: #d8b4fe;
-        }
-
-        .scrollbar-track-purple-100::-webkit-scrollbar-track {
-          background: #f3e8ff;
-        }
-
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
-
-        [animation-delay] {
-          animation-delay: attr(animation-delay ms);
-        }
-      `}</style>
     </div>
   );
 };
