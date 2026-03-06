@@ -1,8 +1,75 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, createContext, useContext } from "react";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Theme Context
+const ThemeContext = createContext();
+
+const ThemeProvider = ({ children }) => {
+  const [isDark, setIsDark] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      return savedTheme === 'dark';
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
+
+  const toggleTheme = () => setIsDark(!isDark);
+
+  return (
+    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
+
+// Theme Toggle Button Component
+const ThemeToggle = () => {
+  const { isDark, toggleTheme } = useTheme();
+
+  return (
+    <motion.button
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.9 }}
+      onClick={toggleTheme}
+      className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-lg transition-all duration-300 ${
+        isDark 
+          ? 'bg-yellow-400 hover:bg-yellow-300 text-gray-900' 
+          : 'bg-gray-800 hover:bg-gray-700 text-yellow-400'
+      }`}
+    >
+      <motion.div
+        animate={{ rotate: isDark ? 180 : 0 }}
+        transition={{ duration: 0.5, type: "spring" }}
+        className="w-6 h-6"
+      >
+        {isDark ? '☀️' : '🌙'}
+      </motion.div>
+    </motion.button>
+  );
+};
+
 const App = () => {
+  const { isDark } = useTheme();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -33,6 +100,50 @@ const App = () => {
     totalEvents: 0
   });
 
+  // Theme-based styles
+  const themeStyles = {
+    background: isDark 
+      ? 'bg-gradient-to-br from-gray-900 to-gray-800' 
+      : 'bg-gradient-to-br from-gray-50 to-gray-100',
+    cardBg: isDark 
+      ? 'bg-gray-800/90 border-gray-700' 
+      : 'bg-white/80 border-gray-200',
+    text: {
+      primary: isDark ? 'text-white' : 'text-gray-900',
+      secondary: isDark ? 'text-gray-300' : 'text-gray-600',
+      muted: isDark ? 'text-gray-400' : 'text-gray-500',
+    },
+    header: isDark 
+      ? 'bg-gradient-to-r from-blue-800 to-indigo-900' 
+      : 'bg-gradient-to-r from-blue-600 to-indigo-600',
+    table: {
+      header: isDark ? 'bg-gray-700' : 'bg-gray-50',
+      row: isDark ? 'bg-gray-800' : 'bg-white',
+      rowHover: isDark ? 'bg-gray-700' : 'bg-gray-50',
+      border: isDark ? 'border-gray-700' : 'border-gray-200',
+    },
+    filter: {
+      bg: isDark ? 'bg-gray-800' : 'bg-white',
+      input: isDark 
+        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+        : 'bg-white border-gray-300 text-gray-900',
+      label: isDark ? 'text-gray-300' : 'text-gray-500',
+    },
+    summary: {
+      blue: isDark ? 'from-blue-900/30 to-blue-800/30 border-blue-700' : 'from-blue-50 to-blue-100 border-blue-200',
+      green: isDark ? 'from-green-900/30 to-green-800/30 border-green-700' : 'from-green-50 to-green-100 border-green-200',
+      pink: isDark ? 'from-pink-900/30 to-pink-800/30 border-pink-700' : 'from-pink-50 to-pink-100 border-pink-200',
+      purple: isDark ? 'from-purple-900/30 to-purple-800/30 border-purple-700' : 'from-purple-50 to-purple-100 border-purple-200',
+      orange: isDark ? 'from-orange-900/30 to-orange-800/30 border-orange-700' : 'from-orange-50 to-orange-100 border-orange-200',
+    },
+    pagination: {
+      bg: isDark ? 'bg-gray-700' : 'bg-gray-50',
+      button: isDark 
+        ? 'border-gray-600 text-gray-300 hover:bg-gray-600' 
+        : 'border-gray-300 text-gray-600 hover:bg-white',
+    }
+  };
+
   // Animation variants
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
@@ -46,11 +157,6 @@ const App = () => {
         staggerChildren: 0.1
       }
     }
-  };
-
-  const scaleOnHover = {
-    whileHover: { scale: 1.02 },
-    whileTap: { scale: 0.98 }
   };
 
   const slideInFromLeft = {
@@ -284,7 +390,9 @@ const App = () => {
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: i * 0.05 }}
-        className="text-xs sm:text-sm py-1 border-b last:border-0 whitespace-pre-wrap break-words"
+        className={`text-xs sm:text-sm py-1 border-b last:border-0 whitespace-pre-wrap break-words ${
+          isDark ? 'border-gray-600 text-gray-300' : 'border-gray-200 text-gray-600'
+        }`}
       >
         {line}
       </motion.div>
@@ -397,7 +505,9 @@ const App = () => {
                   setCurrentPhotoIndex(idx);
                 }}
                 className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                  idx === currentPhotoIndex ? 'border-blue-500 scale-110' : 'border-transparent opacity-60 hover:opacity-100'
+                  idx === currentPhotoIndex 
+                    ? 'border-blue-500 scale-110' 
+                    : 'border-transparent opacity-60 hover:opacity-100'
                 }`}
               >
                 <img src={photo.thumbnail} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
@@ -415,15 +525,18 @@ const App = () => {
       initial="initial"
       animate="animate"
       exit="exit"
-      whileHover={{ y: -4, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)" }}
-      className="bg-white rounded-xl border border-gray-200 p-4 mb-3 shadow-sm transition-all"
+      whileHover={{ y: -4, boxShadow: isDark 
+        ? "0 10px 25px -5px rgba(0,0,0,0.5)" 
+        : "0 10px 25px -5px rgba(0,0,0,0.1)" 
+      }}
+      className={`${themeStyles.cardBg} rounded-xl border p-4 mb-3 shadow-sm transition-all`}
     >
       <div className="flex justify-between items-start mb-3">
         <motion.span 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: index * 0.02 }}
-          className="text-xs text-gray-400"
+          className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
         >
           #{startIndex + index + 1}
         </motion.span>
@@ -431,7 +544,7 @@ const App = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => toggleRowExpansion(row.id)}
-          className="text-blue-600 text-sm font-medium hover:text-blue-800 transition-colors"
+          className="text-blue-600 text-sm font-medium hover:text-blue-800 transition-colors dark:text-blue-400 dark:hover:text-blue-300"
         >
           {expandedRow === row.id ? "▼ Show Less" : "▶ View Details"}
         </motion.button>
@@ -444,8 +557,12 @@ const App = () => {
           transition={{ delay: index * 0.03 }}
           className="border-l-4 border-blue-500 pl-3"
         >
-          <h3 className="font-semibold text-gray-900">{row.instituteName}</h3>
-          <p className="text-xs text-gray-500 mt-1">{row.address}</p>
+          <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {row.instituteName}
+          </h3>
+          <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            {row.address}
+          </p>
         </motion.div>
         
         <motion.div 
@@ -455,22 +572,28 @@ const App = () => {
           className="grid grid-cols-3 gap-2"
         >
           {[
-            { label: "Participants", value: row.totalParticipants, color: "blue", bg: "from-blue-50 to-blue-100" },
-            { label: "Girls", value: row.totalGirls, color: "pink", bg: "from-pink-50 to-pink-100" },
-            { label: "Faculty", value: row.totalFaculty, color: "purple", bg: "from-purple-50 to-purple-100" }
+            { label: "Participants", value: row.totalParticipants, color: "blue" },
+            { label: "Girls", value: row.totalGirls, color: "pink" },
+            { label: "Faculty", value: row.totalFaculty, color: "purple" }
           ].map((item, i) => (
             <motion.div
               key={i}
               variants={fadeInUp}
               whileHover={{ scale: 1.05, y: -2 }}
-              className={`bg-gradient-to-br ${item.bg} p-2 rounded-lg text-center transition-all`}
+              className={`bg-gradient-to-br ${
+                isDark 
+                  ? `from-${item.color}-900/30 to-${item.color}-800/30` 
+                  : `from-${item.color}-50 to-${item.color}-100`
+              } p-2 rounded-lg text-center transition-all`}
             >
-              <span className="text-xs text-gray-600 block">{item.label}</span>
+              <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'} block`}>
+                {item.label}
+              </span>
               <motion.span 
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", delay: index * 0.02 + i * 0.05 }}
-                className={`text-base font-bold text-${item.color}-600`}
+                className={`text-base font-bold text-${item.color}-600 dark:text-${item.color}-400`}
               >
                 {item.value}
               </motion.span>
@@ -482,7 +605,9 @@ const App = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: index * 0.04 }}
-          className="flex items-center justify-between text-xs text-gray-500"
+          className={`flex items-center justify-between text-xs ${
+            isDark ? 'text-gray-400' : 'text-gray-500'
+          }`}
         >
           <span className="flex items-center gap-1">
             <motion.span
@@ -513,17 +638,21 @@ const App = () => {
                   whileHover={{ scale: 1.1, rotate: 2 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => openPhotoGallery(row.photoIds, idx)}
-                  className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition"
+                  className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:opacity-90 transition"
                 >
                   <img src={photo.thumbnail} alt={`Event ${idx + 1}`} className="w-full h-full object-cover" />
                 </motion.button>
               ))}
               {row.newspaperPhotoIds?.length > 0 && (
                 <motion.button
-                  whileHover={{ scale: 1.1, backgroundColor: "#f3f4f6" }}
+                  whileHover={{ scale: 1.1, backgroundColor: isDark ? "#374151" : "#f3f4f6" }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => openPhotoGallery(row.newspaperPhotoIds)}
-                  className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-xs text-gray-600 hover:bg-gray-200 transition"
+                  className={`flex-shrink-0 w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs transition ${
+                    isDark 
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
                 >
                   📰 {row.newspaperPhotoIds.length}
                 </motion.button>
@@ -540,7 +669,9 @@ const App = () => {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="mt-4 pt-4 border-t border-gray-200 overflow-hidden"
+            className={`mt-4 pt-4 border-t overflow-hidden ${
+              isDark ? 'border-gray-700' : 'border-gray-200'
+            }`}
           >
             <MobileExpandedDetails row={row} />
           </motion.div>
@@ -557,17 +688,34 @@ const App = () => {
       className="space-y-4"
     >
       <motion.div variants={slideInFromLeft}>
-        <h4 className="font-semibold text-sm mb-2 text-gray-700">Event Details</h4>
-        <div className="space-y-2 text-sm bg-gray-50 p-3 rounded-lg">
-          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Email:</span> {row.email || 'N/A'}</motion.p>
-          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Coordinator:</span> {row.coordinatorDetails || 'N/A'}</motion.p>
-          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Score:</span> {row.score}</motion.p>
+        <h4 className={`font-semibold text-sm mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+          Event Details
+        </h4>
+        <div className={`space-y-2 text-sm p-3 rounded-lg ${
+          isDark ? 'bg-gray-700' : 'bg-gray-50'
+        }`}>
+          <motion.p variants={fadeInUp}>
+            <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Email:</span> 
+            <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.email || 'N/A'}</span>
+          </motion.p>
+          <motion.p variants={fadeInUp}>
+            <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Coordinator:</span> 
+            <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.coordinatorDetails || 'N/A'}</span>
+          </motion.p>
+          <motion.p variants={fadeInUp}>
+            <span className={`font-medium ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Score:</span> 
+            <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.score}</span>
+          </motion.p>
         </div>
       </motion.div>
       
       <motion.div variants={slideInFromLeft}>
-        <h4 className="font-semibold text-sm mb-2 text-gray-700">Campus Ambassadors</h4>
-        <div className="bg-gray-50 p-3 rounded-lg max-h-40 overflow-y-auto">
+        <h4 className={`font-semibold text-sm mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+          Campus Ambassadors
+        </h4>
+        <div className={`p-3 rounded-lg max-h-40 overflow-y-auto ${
+          isDark ? 'bg-gray-700' : 'bg-gray-50'
+        }`}>
           {formatAmbassadors(row.campusAmbassadors)}
         </div>
       </motion.div>
@@ -575,11 +723,15 @@ const App = () => {
       {/* All Photos section in expanded view */}
       {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
         <motion.div variants={slideInFromLeft}>
-          <h4 className="font-semibold text-sm mb-2 text-gray-700">Photos & Media</h4>
+          <h4 className={`font-semibold text-sm mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+            Photos & Media
+          </h4>
           <div className="space-y-3">
             {row.photoIds?.length > 0 && (
               <motion.div variants={fadeInUp}>
-                <p className="text-xs text-gray-500 mb-1">Event Photos ({row.photoIds.length})</p>
+                <p className={`text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Event Photos ({row.photoIds.length})
+                </p>
                 <div className="grid grid-cols-4 gap-1">
                   {row.photoIds.map((photo, idx) => (
                     <motion.button
@@ -590,7 +742,7 @@ const App = () => {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: idx * 0.05 }}
                       onClick={() => openPhotoGallery(row.photoIds, idx)}
-                      className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition"
+                      className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:opacity-90 transition"
                     >
                       <img src={photo.thumbnail} alt={`Event ${idx + 1}`} className="w-full h-full object-cover" />
                     </motion.button>
@@ -601,7 +753,9 @@ const App = () => {
             
             {row.newspaperPhotoIds?.length > 0 && (
               <motion.div variants={fadeInUp}>
-                <p className="text-xs text-gray-500 mb-1">Newspaper Clippings ({row.newspaperPhotoIds.length})</p>
+                <p className={`text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Newspaper Clippings ({row.newspaperPhotoIds.length})
+                </p>
                 <div className="grid grid-cols-4 gap-1">
                   {row.newspaperPhotoIds.map((photo, idx) => (
                     <motion.button
@@ -612,7 +766,7 @@ const App = () => {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: idx * 0.05 }}
                       onClick={() => openPhotoGallery(row.newspaperPhotoIds, idx)}
-                      className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition"
+                      className="aspect-square rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 hover:opacity-90 transition"
                     >
                       <img src={photo.thumbnail} alt={`Newspaper ${idx + 1}`} className="w-full h-full object-cover" />
                     </motion.button>
@@ -632,7 +786,11 @@ const App = () => {
           variants={fadeInUp}
           whileHover={{ scale: 1.02, x: 5 }}
           whileTap={{ scale: 0.98 }}
-          className="inline-flex items-center gap-2 text-blue-600 text-sm bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition"
+          className={`inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg transition ${
+            isDark 
+              ? 'text-blue-400 bg-blue-900/30 hover:bg-blue-900/50' 
+              : 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+          }`}
         >
           <motion.span
             animate={{ rotate: [0, 10, -10, 0] }}
@@ -647,18 +805,20 @@ const App = () => {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100"
+      className={`min-h-screen transition-colors duration-300 ${themeStyles.background}`}
     >
       <AnimatePresence>
         {showPhotoGallery && <PhotoGalleryModal />}
       </AnimatePresence>
+      
+      <ThemeToggle />
       
       <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
         <motion.div 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: "spring", damping: 20 }}
-          className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl overflow-hidden border border-gray-200"
+          className={`${themeStyles.cardBg} backdrop-blur-sm shadow-xl rounded-2xl overflow-hidden border transition-colors duration-300`}
         >
           
           {/* Header with gradient and animation */}
@@ -666,7 +826,7 @@ const App = () => {
             initial={{ y: -50 }}
             animate={{ y: 0 }}
             transition={{ type: "spring", damping: 20 }}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 sm:p-6"
+            className={`${themeStyles.header} p-4 sm:p-6 transition-colors duration-300`}
           >
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <motion.div
@@ -711,14 +871,18 @@ const App = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="border-b border-gray-200 bg-white"
+            className={`border-b transition-colors duration-300 ${
+              isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'
+            }`}
           >
             <div className="p-4 sm:p-6">
               <motion.button 
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center justify-between w-full sm:hidden mb-2 text-gray-700"
+                className={`flex items-center justify-between w-full sm:hidden mb-2 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}
               >
                 <h2 className="text-lg font-semibold">Filters & Controls</h2>
                 <motion.span 
@@ -737,7 +901,11 @@ const App = () => {
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <h2 className="text-lg font-semibold text-gray-700 mb-4 hidden sm:block">Filters & Controls</h2>
+                    <h2 className={`text-lg font-semibold mb-4 hidden sm:block ${
+                      isDark ? 'text-gray-200' : 'text-gray-700'
+                    }`}>
+                      Filters & Controls
+                    </h2>
                     
                     <motion.div 
                       variants={staggerChildren}
@@ -746,7 +914,9 @@ const App = () => {
                       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4"
                     >
                       <motion.div variants={fadeInUp} className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                        <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${
+                          isDark ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
                           Search Institute
                         </label>
                         <div className="relative">
@@ -758,12 +928,18 @@ const App = () => {
                               setInstituteSearch(e.target.value);
                               setCurrentPage(1);
                             }}
-                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 transition-all"
+                            className={`w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 transition-all ${
+                              isDark 
+                                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                : 'bg-white border-gray-300 text-gray-900'
+                            }`}
                           />
                           <motion.svg 
                             animate={{ rotate: [0, 10, -10, 0] }}
                             transition={{ duration: 2, repeat: Infinity }}
-                            className="w-4 h-4 absolute left-3 top-3 text-gray-400" 
+                            className={`w-4 h-4 absolute left-3 top-3 ${
+                              isDark ? 'text-gray-500' : 'text-gray-400'
+                            }`}
                             fill="none" 
                             stroke="currentColor" 
                             viewBox="0 0 24 24"
@@ -774,7 +950,11 @@ const App = () => {
                       </motion.div>
 
                       <motion.div variants={fadeInUp}>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">District</label>
+                        <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${
+                          isDark ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
+                          District
+                        </label>
                         <motion.select
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
@@ -783,7 +963,11 @@ const App = () => {
                             setSelectedDistrict(e.target.value);
                             setCurrentPage(1);
                           }}
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          className={`w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                            isDark 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
                         >
                           {districts.map(district => (
                             <option key={district} value={district}>{district}</option>
@@ -792,17 +976,29 @@ const App = () => {
                       </motion.div>
 
                       <motion.div variants={fadeInUp} className="hidden sm:block">
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Date Range</label>
+                        <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${
+                          isDark ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
+                          Date Range
+                        </label>
                         <input
                           type="text"
                           placeholder="Coming soon"
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-gray-50 cursor-not-allowed"
+                          className={`w-full border rounded-lg px-4 py-2.5 text-sm cursor-not-allowed ${
+                            isDark 
+                              ? 'bg-gray-700 border-gray-600 text-gray-400' 
+                              : 'bg-gray-50 border-gray-300 text-gray-500'
+                          }`}
                           disabled
                         />
                       </motion.div>
 
                       <motion.div variants={fadeInUp}>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                        <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${
+                          isDark ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
+                          Status
+                        </label>
                         <motion.select
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
@@ -811,7 +1007,11 @@ const App = () => {
                             setSelectedStatus(e.target.value);
                             setCurrentPage(1);
                           }}
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          className={`w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                            isDark 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
                         >
                           <option>All statuses</option>
                           <option>Approved</option>
@@ -820,7 +1020,11 @@ const App = () => {
                       </motion.div>
 
                       <motion.div variants={fadeInUp} className="hidden xl:block">
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">UDISE Updated</label>
+                        <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${
+                          isDark ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
+                          UDISE Updated
+                        </label>
                         <motion.select
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
@@ -829,7 +1033,11 @@ const App = () => {
                             setUdiseUpdated(e.target.value);
                             setCurrentPage(1);
                           }}
-                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                          className={`w-full border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                            isDark 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300 text-gray-900'
+                          }`}
                         >
                           <option>All schools</option>
                           <option>Updated</option>
@@ -909,7 +1117,7 @@ const App = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.4 }}
-                  className="text-sm text-gray-500"
+                  className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                 >
                   Fetching latest information from the server
                 </motion.p>
@@ -937,7 +1145,9 @@ const App = () => {
                   ⚠️
                 </motion.div>
                 <h3 className="text-lg font-medium text-red-600 mb-2">Error Fetching Data</h3>
-                <p className="text-gray-500 mb-4">Please check your connection and try again.</p>
+                <p className={`mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Please check your connection and try again.
+                </p>
                 <motion.button
                   whileHover={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.5)" }}
                   whileTap={{ scale: 0.95 }}
@@ -970,11 +1180,11 @@ const App = () => {
                 className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 sm:p-6"
               >
                 {[
-                  { label: "Institutes", value: summaryStats.totalInstitutes, color: "blue", icon: "🏫" },
-                  { label: "Participants", value: summaryStats.totalParticipants, color: "green", icon: "👥" },
-                  { label: "Girls", value: summaryStats.totalGirls, color: "pink", icon: "👧" },
-                  { label: "Faculty", value: summaryStats.totalFaculty, color: "purple", icon: "👨‍🏫" },
-                  { label: "Events", value: summaryStats.totalEvents, color: "orange", icon: "📅" }
+                  { label: "Institutes", value: summaryStats.totalInstitutes, color: "blue", icon: "🏫", style: themeStyles.summary.blue },
+                  { label: "Participants", value: summaryStats.totalParticipants, color: "green", icon: "👥", style: themeStyles.summary.green },
+                  { label: "Girls", value: summaryStats.totalGirls, color: "pink", icon: "👧", style: themeStyles.summary.pink },
+                  { label: "Faculty", value: summaryStats.totalFaculty, color: "purple", icon: "👨‍🏫", style: themeStyles.summary.purple },
+                  { label: "Events", value: summaryStats.totalEvents, color: "orange", icon: "📅", style: themeStyles.summary.orange }
                 ].map((stat, index) => (
                   <motion.div
                     key={index}
@@ -982,9 +1192,11 @@ const App = () => {
                     whileHover={{ 
                       scale: 1.05, 
                       y: -5,
-                      boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)"
+                      boxShadow: isDark 
+                        ? "0 10px 25px -5px rgba(0,0,0,0.5)" 
+                        : "0 10px 25px -5px rgba(0,0,0,0.1)"
                     }}
-                    className={`bg-gradient-to-br from-${stat.color}-50 to-${stat.color}-100 p-3 sm:p-4 rounded-xl border border-${stat.color}-200 transition-all`}
+                    className={`bg-gradient-to-br ${stat.style} p-3 sm:p-4 rounded-xl border transition-all`}
                   >
                     <motion.div 
                       initial={{ scale: 0 }}
@@ -994,12 +1206,18 @@ const App = () => {
                     >
                       {stat.icon}
                     </motion.div>
-                    <p className={`text-xs sm:text-sm text-${stat.color}-700 font-medium`}>{stat.label}</p>
+                    <p className={`text-xs sm:text-sm font-medium ${
+                      isDark ? `text-${stat.color}-300` : `text-${stat.color}-700`
+                    }`}>
+                      {stat.label}
+                    </p>
                     <motion.p 
                       initial={{ scale: 0.5, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ type: "spring", delay: index * 0.1 + 0.1 }}
-                      className={`text-lg sm:text-2xl font-bold text-${stat.color}-800`}
+                      className={`text-lg sm:text-2xl font-bold ${
+                        isDark ? `text-${stat.color}-200` : `text-${stat.color}-800`
+                      }`}
                     >
                       {stat.value}
                     </motion.p>
@@ -1019,8 +1237,8 @@ const App = () => {
                 transition={{ delay: 0.2 }}
               >
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y">
+                    <thead className={isDark ? 'bg-gray-700' : 'bg-gray-50'}>
                       <tr>
                         {["#", "Institute", "Address", "Participants", "Girls", "Faculty", "District", "Date", "Media", "Actions"].map((header, i) => (
                           <motion.th
@@ -1028,14 +1246,16 @@ const App = () => {
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.05 }}
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                              isDark ? 'text-gray-300' : 'text-gray-500'
+                            }`}
                           >
                             {header}
                           </motion.th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className={`divide-y ${isDark ? 'divide-gray-700 bg-gray-800' : 'divide-gray-200 bg-white'}`}>
                       {currentData.map((row, index) => (
                         <React.Fragment key={row.id}>
                           <motion.tr 
@@ -1043,32 +1263,66 @@ const App = () => {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: index * 0.03 }}
                             whileHover={{ 
-                              backgroundColor: "#f9fafb",
+                              backgroundColor: isDark ? '#374151' : '#f9fafb',
                               scale: 1.01,
-                              boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)"
+                              boxShadow: isDark 
+                                ? "0 4px 6px -1px rgba(0,0,0,0.5)" 
+                                : "0 4px 6px -1px rgba(0,0,0,0.1)"
                             }}
-                            className={`cursor-pointer transition-all ${expandedRow === row.id ? 'bg-blue-50' : ''}`}
+                            className={`cursor-pointer transition-all ${
+                              expandedRow === row.id 
+                                ? isDark ? 'bg-gray-700' : 'bg-blue-50'
+                                : ''
+                            }`}
                             onClick={() => toggleRowExpansion(row.id)}
                           >
-                            <td className="px-6 py-4 text-sm text-gray-500 align-top">{startIndex + index + 1}</td>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-900 align-top max-w-xs">
+                            <td className={`px-6 py-4 text-sm align-top ${
+                              isDark ? 'text-gray-400' : 'text-gray-500'
+                            }`}>
+                              {startIndex + index + 1}
+                            </td>
+                            <td className={`px-6 py-4 text-sm font-medium align-top max-w-xs ${
+                              isDark ? 'text-white' : 'text-gray-900'
+                            }`}>
                               {row.instituteName}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600 align-top max-w-xs break-words">
+                            <td className={`px-6 py-4 text-sm align-top max-w-xs break-words ${
+                              isDark ? 'text-gray-300' : 'text-gray-600'
+                            }`}>
                               {row.address}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalParticipants}</td>
-                            <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalGirls}</td>
-                            <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalFaculty}</td>
-                            <td className="px-6 py-4 text-sm text-gray-900 align-top">
+                            <td className={`px-6 py-4 text-sm align-top font-semibold ${
+                              isDark ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              {row.totalParticipants}
+                            </td>
+                            <td className={`px-6 py-4 text-sm align-top font-semibold ${
+                              isDark ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              {row.totalGirls}
+                            </td>
+                            <td className={`px-6 py-4 text-sm align-top font-semibold ${
+                              isDark ? 'text-white' : 'text-gray-900'
+                            }`}>
+                              {row.totalFaculty}
+                            </td>
+                            <td className="px-6 py-4 text-sm align-top">
                               <motion.span 
                                 whileHover={{ scale: 1.05 }}
-                                className="px-2 py-1 bg-gray-100 rounded-full text-xs inline-block"
+                                className={`px-2 py-1 rounded-full text-xs inline-block ${
+                                  isDark 
+                                    ? 'bg-gray-700 text-gray-300' 
+                                    : 'bg-gray-100 text-gray-900'
+                                }`}
                               >
                                 {row.district}
                               </motion.span>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-600 align-top">{row.eventDate}</td>
+                            <td className={`px-6 py-4 text-sm align-top ${
+                              isDark ? 'text-gray-300' : 'text-gray-600'
+                            }`}>
+                              {row.eventDate}
+                            </td>
                             <td className="px-6 py-4 text-sm align-top">
                               {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
                                 <div className="flex gap-1">
@@ -1080,7 +1334,11 @@ const App = () => {
                                         e.stopPropagation();
                                         openPhotoGallery(row.photoIds);
                                       }}
-                                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded text-xs"
+                                      className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                                        isDark 
+                                          ? 'text-blue-400 bg-blue-900/30 hover:bg-blue-900/50' 
+                                          : 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                                      }`}
                                     >
                                       <motion.span
                                         animate={{ scale: [1, 1.2, 1] }}
@@ -1096,7 +1354,11 @@ const App = () => {
                                         e.stopPropagation();
                                         openPhotoGallery(row.newspaperPhotoIds);
                                       }}
-                                      className="flex items-center gap-1 text-green-600 hover:text-green-800 bg-green-50 px-2 py-1 rounded text-xs"
+                                      className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                                        isDark 
+                                          ? 'text-green-400 bg-green-900/30 hover:bg-green-900/50' 
+                                          : 'text-green-600 bg-green-50 hover:bg-green-100'
+                                      }`}
                                     >
                                       <motion.span
                                         animate={{ rotate: [0, 5, -5, 0] }}
@@ -1115,7 +1377,11 @@ const App = () => {
                                   e.stopPropagation();
                                   toggleRowExpansion(row.id);
                                 }}
-                                className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                                className={`font-medium flex items-center gap-1 ${
+                                  isDark 
+                                    ? 'text-blue-400 hover:text-blue-300' 
+                                    : 'text-blue-600 hover:text-blue-800'
+                                }`}
                               >
                                 <motion.span
                                   animate={{ rotate: expandedRow === row.id ? 90 : 0 }}
@@ -1133,7 +1399,7 @@ const App = () => {
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
                                 transition={{ duration: 0.3 }}
-                                className="bg-blue-50"
+                                className={isDark ? 'bg-gray-700' : 'bg-blue-50'}
                               >
                                 <td colSpan="10" className="px-6 py-6">
                                   <motion.div 
@@ -1143,8 +1409,15 @@ const App = () => {
                                     className="grid grid-cols-1 lg:grid-cols-2 gap-6"
                                   >
                                     <div className="space-y-4">
-                                      <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
-                                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                      <motion.div 
+                                        variants={slideInFromLeft} 
+                                        className={`p-4 rounded-xl shadow-sm ${
+                                          isDark ? 'bg-gray-800' : 'bg-white'
+                                        }`}
+                                      >
+                                        <h3 className={`font-semibold mb-3 flex items-center gap-2 ${
+                                          isDark ? 'text-gray-200' : 'text-gray-700'
+                                        }`}>
                                           <motion.span 
                                             animate={{ scale: [1, 1.2, 1] }}
                                             transition={{ duration: 2, repeat: Infinity }}
@@ -1153,16 +1426,38 @@ const App = () => {
                                           Event Details
                                         </h3>
                                         <motion.div variants={staggerChildren} className="space-y-2">
-                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Email:</span> {row.email || 'N/A'}</motion.p>
-                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Email Address:</span> {row.emailAddress || 'N/A'}</motion.p>
-                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Score:</span> {row.score}</motion.p>
-                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Coordinator:</span> {row.coordinatorDetails || 'N/A'}</motion.p>
-                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Feedback:</span> {row.feedback || 'Not provided'}</motion.p>
+                                          <motion.p variants={fadeInUp}>
+                                            <span className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Email:</span> 
+                                            <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.email || 'N/A'}</span>
+                                          </motion.p>
+                                          <motion.p variants={fadeInUp}>
+                                            <span className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Email Address:</span> 
+                                            <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.emailAddress || 'N/A'}</span>
+                                          </motion.p>
+                                          <motion.p variants={fadeInUp}>
+                                            <span className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Score:</span> 
+                                            <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.score}</span>
+                                          </motion.p>
+                                          <motion.p variants={fadeInUp}>
+                                            <span className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Coordinator:</span> 
+                                            <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.coordinatorDetails || 'N/A'}</span>
+                                          </motion.p>
+                                          <motion.p variants={fadeInUp}>
+                                            <span className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Feedback:</span> 
+                                            <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.feedback || 'Not provided'}</span>
+                                          </motion.p>
                                         </motion.div>
                                       </motion.div>
                                       
-                                      <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
-                                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                      <motion.div 
+                                        variants={slideInFromLeft} 
+                                        className={`p-4 rounded-xl shadow-sm ${
+                                          isDark ? 'bg-gray-800' : 'bg-white'
+                                        }`}
+                                      >
+                                        <h3 className={`font-semibold mb-3 flex items-center gap-2 ${
+                                          isDark ? 'text-gray-200' : 'text-gray-700'
+                                        }`}>
                                           <motion.span 
                                             animate={{ scale: [1, 1.2, 1] }}
                                             transition={{ duration: 2, repeat: Infinity, delay: 0.2 }}
@@ -1177,8 +1472,10 @@ const App = () => {
                                               target="_blank" 
                                               rel="noopener noreferrer"
                                               variants={fadeInUp}
-                                              whileHover={{ x: 5, color: "#2563eb" }}
-                                              className="flex items-center gap-2 text-blue-600 hover:underline break-all"
+                                              whileHover={{ x: 5 }}
+                                              className={`flex items-center gap-2 hover:underline break-all ${
+                                                isDark ? 'text-blue-400' : 'text-blue-600'
+                                              }`}
                                             >
                                               <motion.span
                                                 animate={{ rotate: [0, 10, -10, 0] }}
@@ -1192,8 +1489,15 @@ const App = () => {
                                     </div>
                                     
                                     <div className="space-y-4">
-                                      <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
-                                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                      <motion.div 
+                                        variants={slideInFromLeft} 
+                                        className={`p-4 rounded-xl shadow-sm ${
+                                          isDark ? 'bg-gray-800' : 'bg-white'
+                                        }`}
+                                      >
+                                        <h3 className={`font-semibold mb-3 flex items-center gap-2 ${
+                                          isDark ? 'text-gray-200' : 'text-gray-700'
+                                        }`}>
                                           <motion.span 
                                             animate={{ scale: [1, 1.2, 1] }}
                                             transition={{ duration: 2, repeat: Infinity, delay: 0.4 }}
@@ -1201,13 +1505,22 @@ const App = () => {
                                           />
                                           Campus Ambassadors
                                         </h3>
-                                        <div className="bg-gray-50 p-3 rounded-lg max-h-40 overflow-y-auto">
+                                        <div className={`p-3 rounded-lg max-h-40 overflow-y-auto ${
+                                          isDark ? 'bg-gray-700' : 'bg-gray-50'
+                                        }`}>
                                           {formatAmbassadors(row.campusAmbassadors)}
                                         </div>
                                       </motion.div>
                                       
-                                      <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
-                                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                      <motion.div 
+                                        variants={slideInFromLeft} 
+                                        className={`p-4 rounded-xl shadow-sm ${
+                                          isDark ? 'bg-gray-800' : 'bg-white'
+                                        }`}
+                                      >
+                                        <h3 className={`font-semibold mb-3 flex items-center gap-2 ${
+                                          isDark ? 'text-gray-200' : 'text-gray-700'
+                                        }`}>
                                           <motion.span 
                                             animate={{ scale: [1, 1.2, 1] }}
                                             transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
@@ -1215,14 +1528,27 @@ const App = () => {
                                           />
                                           Additional Info
                                         </h3>
-                                        <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">State & District:</span> {row.stateDistrict}</motion.p>
-                                        <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Timestamp:</span> {row.timestamp}</motion.p>
+                                        <motion.p variants={fadeInUp}>
+                                          <span className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>State & District:</span> 
+                                          <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.stateDistrict}</span>
+                                        </motion.p>
+                                        <motion.p variants={fadeInUp}>
+                                          <span className={`font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Timestamp:</span> 
+                                          <span className={isDark ? 'text-gray-200' : 'text-gray-800'}> {row.timestamp}</span>
+                                        </motion.p>
                                       </motion.div>
 
                                       {/* Photos in expanded desktop view with animations */}
                                       {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
-                                        <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
-                                          <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                        <motion.div 
+                                          variants={slideInFromLeft} 
+                                          className={`p-4 rounded-xl shadow-sm ${
+                                            isDark ? 'bg-gray-800' : 'bg-white'
+                                          }`}
+                                        >
+                                          <h3 className={`font-semibold mb-3 flex items-center gap-2 ${
+                                            isDark ? 'text-gray-200' : 'text-gray-700'
+                                          }`}>
                                             <motion.span 
                                               animate={{ scale: [1, 1.2, 1] }}
                                               transition={{ duration: 2, repeat: Infinity, delay: 0.8 }}
@@ -1233,7 +1559,11 @@ const App = () => {
                                           <div className="space-y-4">
                                             {row.photoIds?.length > 0 && (
                                               <motion.div variants={fadeInUp}>
-                                                <p className="text-sm font-medium text-gray-600 mb-2">Event Photos</p>
+                                                <p className={`text-sm font-medium mb-2 ${
+                                                  isDark ? 'text-gray-300' : 'text-gray-600'
+                                                }`}>
+                                                  Event Photos
+                                                </p>
                                                 <div className="grid grid-cols-4 gap-2">
                                                   {row.photoIds.slice(0, 4).map((photo, idx) => (
                                                     <motion.button
@@ -1254,13 +1584,17 @@ const App = () => {
                                                   ))}
                                                   {row.photoIds.length > 4 && (
                                                     <motion.button
-                                                      whileHover={{ scale: 1.1, backgroundColor: "#e5e7eb" }}
+                                                      whileHover={{ scale: 1.1, backgroundColor: isDark ? "#4B5563" : "#e5e7eb" }}
                                                       whileTap={{ scale: 0.95 }}
                                                       onClick={(e) => {
                                                         e.stopPropagation();
                                                         openPhotoGallery(row.photoIds, 4);
                                                       }}
-                                                      className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-600 hover:bg-gray-200 transition"
+                                                      className={`aspect-square rounded-lg flex items-center justify-center text-sm transition ${
+                                                        isDark 
+                                                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                                                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                      }`}
                                                     >
                                                       +{row.photoIds.length - 4}
                                                     </motion.button>
@@ -1271,7 +1605,11 @@ const App = () => {
                                             
                                             {row.newspaperPhotoIds?.length > 0 && (
                                               <motion.div variants={fadeInUp}>
-                                                <p className="text-sm font-medium text-gray-600 mb-2">Newspaper Clippings</p>
+                                                <p className={`text-sm font-medium mb-2 ${
+                                                  isDark ? 'text-gray-300' : 'text-gray-600'
+                                                }`}>
+                                                  Newspaper Clippings
+                                                </p>
                                                 <div className="grid grid-cols-4 gap-2">
                                                   {row.newspaperPhotoIds.slice(0, 4).map((photo, idx) => (
                                                     <motion.button
@@ -1292,13 +1630,17 @@ const App = () => {
                                                   ))}
                                                   {row.newspaperPhotoIds.length > 4 && (
                                                     <motion.button
-                                                      whileHover={{ scale: 1.1, backgroundColor: "#e5e7eb" }}
+                                                      whileHover={{ scale: 1.1, backgroundColor: isDark ? "#4B5563" : "#e5e7eb" }}
                                                       whileTap={{ scale: 0.95 }}
                                                       onClick={(e) => {
                                                         e.stopPropagation();
                                                         openPhotoGallery(row.newspaperPhotoIds, 4);
                                                       }}
-                                                      className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-600 hover:bg-gray-200 transition"
+                                                      className={`aspect-square rounded-lg flex items-center justify-center text-sm transition ${
+                                                        isDark 
+                                                          ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                                                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                      }`}
                                                     >
                                                       +{row.newspaperPhotoIds.length - 4}
                                                     </motion.button>
@@ -1335,12 +1677,14 @@ const App = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4"
+                  className={`px-6 py-4 border-t flex flex-col sm:flex-row justify-between items-center gap-4 ${
+                    isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
+                  }`}
                 >
                   <motion.span 
                     animate={{ scale: [1, 1.02, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
-                    className="text-sm text-gray-600"
+                    className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}
                   >
                     Showing <span className="font-semibold">{startIndex + 1}</span> to{' '}
                     <span className="font-semibold">{Math.min(startIndex + itemsPerPage, filteredData.length)}</span> of{' '}
@@ -1353,7 +1697,11 @@ const App = () => {
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-white transition-all flex items-center gap-1"
+                      className={`px-4 py-2 border rounded-lg text-sm disabled:opacity-50 transition-all flex items-center gap-1 ${
+                        isDark 
+                          ? 'border-gray-600 text-gray-300 hover:bg-gray-600' 
+                          : 'border-gray-300 text-gray-600 hover:bg-white'
+                      }`}
                     >
                       <motion.span
                         animate={{ x: currentPage > 1 ? [-2, 0, -2] : 0 }}
@@ -1383,7 +1731,9 @@ const App = () => {
                             className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${
                               currentPage === pageNum
                                 ? 'bg-blue-600 text-white shadow-md'
-                                : 'hover:bg-gray-200'
+                                : isDark 
+                                  ? 'hover:bg-gray-600 text-gray-300' 
+                                  : 'hover:bg-gray-200'
                             }`}
                           >
                             {pageNum}
@@ -1397,7 +1747,11 @@ const App = () => {
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-white transition-all flex items-center gap-1"
+                      className={`px-4 py-2 border rounded-lg text-sm disabled:opacity-50 transition-all flex items-center gap-1 ${
+                        isDark 
+                          ? 'border-gray-600 text-gray-300 hover:bg-gray-600' 
+                          : 'border-gray-300 text-gray-600 hover:bg-white'
+                      }`}
                     >
                       Next <motion.span
                         animate={{ x: currentPage < totalPages ? [2, 0, 2] : 0 }}
@@ -1425,7 +1779,7 @@ const App = () => {
                     rotate: [0, 5, -5, 0]
                   }}
                   transition={{ duration: 2, repeat: Infinity }}
-                  className="text-gray-400 text-6xl mb-4"
+                  className={`text-6xl mb-4 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}
                 >
                   📊
                 </motion.div>
@@ -1433,7 +1787,7 @@ const App = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="text-lg font-medium text-gray-700 mb-2"
+                  className={`text-lg font-medium mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}
                 >
                   No Data Available
                 </motion.h3>
@@ -1441,7 +1795,7 @@ const App = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.3 }}
-                  className="text-gray-500 mb-4"
+                  className={`mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                 >
                   Click the refresh button to fetch data from the server.
                 </motion.p>
@@ -1472,4 +1826,13 @@ const App = () => {
   );
 };
 
-export default App;
+// Wrapper component with ThemeProvider
+const AppWithTheme = () => {
+  return (
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
+  );
+};
+
+export default AppWithTheme;
