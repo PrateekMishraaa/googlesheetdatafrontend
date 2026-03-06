@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import axios from "axios";
+import { motion, AnimatePresence } from "framer-motion";
 
 const App = () => {
   const [data, setData] = useState([]);
@@ -31,6 +32,32 @@ const App = () => {
     totalFaculty: 0,
     totalEvents: 0
   });
+
+  // Animation variants
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -20 }
+  };
+
+  const staggerChildren = {
+    animate: {
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const scaleOnHover = {
+    whileHover: { scale: 1.02 },
+    whileTap: { scale: 0.98 }
+  };
+
+  const slideInFromLeft = {
+    initial: { x: -20, opacity: 0 },
+    animate: { x: 0, opacity: 1 },
+    exit: { x: 20, opacity: 0 }
+  };
 
   // Responsive items per page based on screen size
   useEffect(() => {
@@ -182,19 +209,22 @@ const App = () => {
         }
       }
 
-      setData(apiData);
-      
-      const stats = {
-        totalInstitutes: apiData.length,
-        totalParticipants: apiData.reduce((sum, item) => sum + (item.totalParticipants || 0), 0),
-        totalGirls: apiData.reduce((sum, item) => sum + (item.totalGirls || 0), 0),
-        totalFaculty: apiData.reduce((sum, item) => sum + (item.totalFaculty || 0), 0),
-        totalEvents: apiData.length
-      };
-      
-      setSummaryStats(stats);
-      setCurrentPage(1);
-      setLoading(false);
+      // Simulate loading for smoother animation
+      setTimeout(() => {
+        setData(apiData);
+        
+        const stats = {
+          totalInstitutes: apiData.length,
+          totalParticipants: apiData.reduce((sum, item) => sum + (item.totalParticipants || 0), 0),
+          totalGirls: apiData.reduce((sum, item) => sum + (item.totalGirls || 0), 0),
+          totalFaculty: apiData.reduce((sum, item) => sum + (item.totalFaculty || 0), 0),
+          totalEvents: apiData.length
+        };
+        
+        setSummaryStats(stats);
+        setCurrentPage(1);
+        setLoading(false);
+      }, 800);
     } catch (err) {
       console.error("Error fetching data:", err);
       setError(true);
@@ -249,712 +279,1196 @@ const App = () => {
   const formatAmbassadors = (ambassadors) => {
     if (!ambassadors) return "No data";
     return ambassadors.split('\n').map((line, i) => (
-      <div key={i} className="text-xs sm:text-sm py-1 border-b last:border-0 whitespace-pre-wrap break-words">{line}</div>
+      <motion.div 
+        key={i} 
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: i * 0.05 }}
+        className="text-xs sm:text-sm py-1 border-b last:border-0 whitespace-pre-wrap break-words"
+      >
+        {line}
+      </motion.div>
     ));
   };
 
-  // Photo Gallery Modal Component
+  // Photo Gallery Modal Component with animations
   const PhotoGalleryModal = () => {
     if (!showPhotoGallery || currentPhotoUrls.length === 0) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-        <button 
-          onClick={() => setShowPhotoGallery(false)}
-          className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-50"
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4"
+        onClick={() => setShowPhotoGallery(false)}
+      >
+        <motion.button 
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1, rotate: 90 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowPhotoGallery(false);
+          }}
+          className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 z-50 w-12 h-12 flex items-center justify-center rounded-full bg-black bg-opacity-50 hover:bg-opacity-70 transition-all"
         >
           &times;
-        </button>
+        </motion.button>
         
-        <div className="relative w-full max-w-6xl max-h-screen">
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", damping: 25 }}
+          className="relative w-full max-w-6xl max-h-screen"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Main Image/Preview */}
           <div className="relative h-[80vh] flex items-center justify-center">
-            {currentPhotoUrls[currentPhotoIndex]?.view ? (
-              <iframe
-                src={currentPhotoUrls[currentPhotoIndex].view}
-                className="w-full h-full rounded-lg"
-                allowFullScreen
-              />
-            ) : (
-              <img
-                src={currentPhotoUrls[currentPhotoIndex]?.thumbnail}
-                alt={`Photo ${currentPhotoIndex + 1}`}
-                className="max-w-full max-h-full object-contain rounded-lg"
-              />
-            )}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentPhotoIndex}
+                initial={{ opacity: 0, x: 100 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -100 }}
+                transition={{ type: "spring", damping: 25 }}
+                className="w-full h-full flex items-center justify-center"
+              >
+                {currentPhotoUrls[currentPhotoIndex]?.view ? (
+                  <iframe
+                    src={currentPhotoUrls[currentPhotoIndex].view}
+                    className="w-full h-full rounded-lg"
+                    allowFullScreen
+                  />
+                ) : (
+                  <img
+                    src={currentPhotoUrls[currentPhotoIndex]?.thumbnail}
+                    alt={`Photo ${currentPhotoIndex + 1}`}
+                    className="max-w-full max-h-full object-contain rounded-lg"
+                  />
+                )}
+              </motion.div>
+            </AnimatePresence>
           </div>
           
-          {/* Navigation Arrows */}
+          {/* Navigation Arrows with animations */}
           {currentPhotoUrls.length > 1 && (
             <>
-              <button
-                onClick={() => setCurrentPhotoIndex(prev => (prev > 0 ? prev - 1 : currentPhotoUrls.length - 1))}
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-3xl w-12 h-12 rounded-full flex items-center justify-center"
+              <motion.button
+                whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.3)" }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentPhotoIndex(prev => (prev > 0 ? prev - 1 : currentPhotoUrls.length - 1));
+                }}
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 text-white text-3xl w-12 h-12 rounded-full flex items-center justify-center"
               >
                 ‹
-              </button>
-              <button
-                onClick={() => setCurrentPhotoIndex(prev => (prev < currentPhotoUrls.length - 1 ? prev + 1 : 0))}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white text-3xl w-12 h-12 rounded-full flex items-center justify-center"
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.3)" }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentPhotoIndex(prev => (prev < currentPhotoUrls.length - 1 ? prev + 1 : 0));
+                }}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-20 text-white text-3xl w-12 h-12 rounded-full flex items-center justify-center"
               >
                 ›
-              </button>
+              </motion.button>
             </>
           )}
           
-          {/* Thumbnail Strip */}
-          <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 overflow-x-auto px-4 py-2">
+          {/* Thumbnail Strip with animations */}
+          <motion.div 
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 overflow-x-auto px-4 py-2"
+          >
             {currentPhotoUrls.map((photo, idx) => (
-              <button
+              <motion.button
                 key={idx}
-                onClick={() => setCurrentPhotoIndex(idx)}
+                whileHover={{ scale: 1.1, y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentPhotoIndex(idx);
+                }}
                 className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                   idx === currentPhotoIndex ? 'border-blue-500 scale-110' : 'border-transparent opacity-60 hover:opacity-100'
                 }`}
               >
                 <img src={photo.thumbnail} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
-              </button>
+              </motion.button>
             ))}
-          </div>
-        </div>
-      </div>
+          </motion.div>
+        </motion.div>
+      </motion.div>
     );
   };
 
   const MobileCard = ({ row, index }) => (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 mb-3 shadow-sm hover:shadow-md transition-shadow">
+    <motion.div 
+      variants={fadeInUp}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      whileHover={{ y: -4, boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)" }}
+      className="bg-white rounded-xl border border-gray-200 p-4 mb-3 shadow-sm transition-all"
+    >
       <div className="flex justify-between items-start mb-3">
-        <span className="text-xs text-gray-400">#{startIndex + index + 1}</span>
-        <button 
+        <motion.span 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: index * 0.02 }}
+          className="text-xs text-gray-400"
+        >
+          #{startIndex + index + 1}
+        </motion.span>
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => toggleRowExpansion(row.id)}
           className="text-blue-600 text-sm font-medium hover:text-blue-800 transition-colors"
         >
           {expandedRow === row.id ? "▼ Show Less" : "▶ View Details"}
-        </button>
+        </motion.button>
       </div>
       
       <div className="space-y-3">
-        <div className="border-l-4 border-blue-500 pl-3">
+        <motion.div 
+          initial={{ x: -10, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: index * 0.03 }}
+          className="border-l-4 border-blue-500 pl-3"
+        >
           <h3 className="font-semibold text-gray-900">{row.instituteName}</h3>
           <p className="text-xs text-gray-500 mt-1">{row.address}</p>
-        </div>
+        </motion.div>
         
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-2 rounded-lg text-center">
-            <span className="text-xs text-gray-600 block">Participants</span>
-            <span className="text-base font-bold text-blue-600">{row.totalParticipants}</span>
-          </div>
-          <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-2 rounded-lg text-center">
-            <span className="text-xs text-gray-600 block">Girls</span>
-            <span className="text-base font-bold text-pink-600">{row.totalGirls}</span>
-          </div>
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-2 rounded-lg text-center">
-            <span className="text-xs text-gray-600 block">Faculty</span>
-            <span className="text-base font-bold text-purple-600">{row.totalFaculty}</span>
-          </div>
-        </div>
+        <motion.div 
+          variants={staggerChildren}
+          initial="initial"
+          animate="animate"
+          className="grid grid-cols-3 gap-2"
+        >
+          {[
+            { label: "Participants", value: row.totalParticipants, color: "blue", bg: "from-blue-50 to-blue-100" },
+            { label: "Girls", value: row.totalGirls, color: "pink", bg: "from-pink-50 to-pink-100" },
+            { label: "Faculty", value: row.totalFaculty, color: "purple", bg: "from-purple-50 to-purple-100" }
+          ].map((item, i) => (
+            <motion.div
+              key={i}
+              variants={fadeInUp}
+              whileHover={{ scale: 1.05, y: -2 }}
+              className={`bg-gradient-to-br ${item.bg} p-2 rounded-lg text-center transition-all`}
+            >
+              <span className="text-xs text-gray-600 block">{item.label}</span>
+              <motion.span 
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", delay: index * 0.02 + i * 0.05 }}
+                className={`text-base font-bold text-${item.color}-600`}
+              >
+                {item.value}
+              </motion.span>
+            </motion.div>
+          ))}
+        </motion.div>
         
-        <div className="flex items-center justify-between text-xs text-gray-500">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: index * 0.04 }}
+          className="flex items-center justify-between text-xs text-gray-500"
+        >
           <span className="flex items-center gap-1">
-            <span>📍</span> {row.district}
+            <motion.span
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >📍</motion.span> {row.district}
           </span>
           <span className="flex items-center gap-1">
-            <span>📅</span> {row.eventDate}
+            <motion.span
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+            >📅</motion.span> {row.eventDate}
           </span>
-        </div>
+        </motion.div>
 
-        {/* Photo preview on mobile */}
+        {/* Photo preview on mobile with animations */}
         {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
-          <div className="mt-2">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="mt-2"
+          >
             <div className="flex gap-1 overflow-x-auto pb-1">
               {row.photoIds?.slice(0, 3).map((photo, idx) => (
-                <button
+                <motion.button
                   key={idx}
+                  whileHover={{ scale: 1.1, rotate: 2 }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => openPhotoGallery(row.photoIds, idx)}
                   className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition"
                 >
                   <img src={photo.thumbnail} alt={`Event ${idx + 1}`} className="w-full h-full object-cover" />
-                </button>
+                </motion.button>
               ))}
               {row.newspaperPhotoIds?.length > 0 && (
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.1, backgroundColor: "#f3f4f6" }}
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => openPhotoGallery(row.newspaperPhotoIds)}
                   className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-xs text-gray-600 hover:bg-gray-200 transition"
                 >
                   📰 {row.newspaperPhotoIds.length}
-                </button>
+                </motion.button>
               )}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
       
-      {expandedRow === row.id && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <MobileExpandedDetails row={row} />
-        </div>
-      )}
-    </div>
+      <AnimatePresence>
+        {expandedRow === row.id && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="mt-4 pt-4 border-t border-gray-200 overflow-hidden"
+          >
+            <MobileExpandedDetails row={row} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 
   const MobileExpandedDetails = ({ row }) => (
-    <div className="space-y-4">
-      <div>
+    <motion.div 
+      variants={staggerChildren}
+      initial="initial"
+      animate="animate"
+      className="space-y-4"
+    >
+      <motion.div variants={slideInFromLeft}>
         <h4 className="font-semibold text-sm mb-2 text-gray-700">Event Details</h4>
         <div className="space-y-2 text-sm bg-gray-50 p-3 rounded-lg">
-          <p><span className="font-medium text-gray-600">Email:</span> {row.email || 'N/A'}</p>
-          <p><span className="font-medium text-gray-600">Coordinator:</span> {row.coordinatorDetails || 'N/A'}</p>
-          <p><span className="font-medium text-gray-600">Score:</span> {row.score}</p>
+          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Email:</span> {row.email || 'N/A'}</motion.p>
+          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Coordinator:</span> {row.coordinatorDetails || 'N/A'}</motion.p>
+          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Score:</span> {row.score}</motion.p>
         </div>
-      </div>
+      </motion.div>
       
-      <div>
+      <motion.div variants={slideInFromLeft}>
         <h4 className="font-semibold text-sm mb-2 text-gray-700">Campus Ambassadors</h4>
         <div className="bg-gray-50 p-3 rounded-lg max-h-40 overflow-y-auto">
           {formatAmbassadors(row.campusAmbassadors)}
         </div>
-      </div>
+      </motion.div>
       
       {/* All Photos section in expanded view */}
       {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
-        <div>
+        <motion.div variants={slideInFromLeft}>
           <h4 className="font-semibold text-sm mb-2 text-gray-700">Photos & Media</h4>
           <div className="space-y-3">
             {row.photoIds?.length > 0 && (
-              <div>
+              <motion.div variants={fadeInUp}>
                 <p className="text-xs text-gray-500 mb-1">Event Photos ({row.photoIds.length})</p>
                 <div className="grid grid-cols-4 gap-1">
                   {row.photoIds.map((photo, idx) => (
-                    <button
+                    <motion.button
                       key={idx}
+                      whileHover={{ scale: 1.1, rotate: 2 }}
+                      whileTap={{ scale: 0.95 }}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: idx * 0.05 }}
                       onClick={() => openPhotoGallery(row.photoIds, idx)}
                       className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition"
                     >
                       <img src={photo.thumbnail} alt={`Event ${idx + 1}`} className="w-full h-full object-cover" />
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
             
             {row.newspaperPhotoIds?.length > 0 && (
-              <div>
+              <motion.div variants={fadeInUp}>
                 <p className="text-xs text-gray-500 mb-1">Newspaper Clippings ({row.newspaperPhotoIds.length})</p>
                 <div className="grid grid-cols-4 gap-1">
                   {row.newspaperPhotoIds.map((photo, idx) => (
-                    <button
+                    <motion.button
                       key={idx}
+                      whileHover={{ scale: 1.1, rotate: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: idx * 0.05 }}
                       onClick={() => openPhotoGallery(row.newspaperPhotoIds, idx)}
                       className="aspect-square rounded-lg overflow-hidden border border-gray-200 hover:opacity-90 transition"
                     >
                       <img src={photo.thumbnail} alt={`Newspaper ${idx + 1}`} className="w-full h-full object-cover" />
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
       
       {row.reportLink && (
-        <a href={row.reportLink} target="_blank" rel="noopener noreferrer" 
-           className="inline-flex items-center gap-2 text-blue-600 text-sm bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
-          <span>📄</span> View Report
-        </a>
+        <motion.a 
+          href={row.reportLink} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          variants={fadeInUp}
+          whileHover={{ scale: 1.02, x: 5 }}
+          whileTap={{ scale: 0.98 }}
+          className="inline-flex items-center gap-2 text-blue-600 text-sm bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition"
+        >
+          <motion.span
+            animate={{ rotate: [0, 10, -10, 0] }}
+            transition={{ duration: 1, repeat: Infinity }}
+          >📄</motion.span> View Report
+        </motion.a>
       )}
-    </div>
+    </motion.div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <PhotoGalleryModal />
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100"
+    >
+      <AnimatePresence>
+        {showPhotoGallery && <PhotoGalleryModal />}
+      </AnimatePresence>
       
       <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
-        <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl overflow-hidden border border-gray-200">
+        <motion.div 
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: "spring", damping: 20 }}
+          className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl overflow-hidden border border-gray-200"
+        >
           
-          {/* Header with gradient */}
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 sm:p-6">
+          {/* Header with gradient and animation */}
+          <motion.div 
+            initial={{ y: -50 }}
+            animate={{ y: 0 }}
+            transition={{ type: "spring", damping: 20 }}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 sm:p-6"
+          >
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white">Disaster Ready School Dashboard</h1>
-                <p className="text-xs sm:text-sm text-blue-100 mt-1">Real-time monitoring of school preparedness campaigns</p>
-              </div>
+              <motion.div
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <motion.h1 
+                  animate={{ 
+                    textShadow: ["0 0 0 rgba(255,255,255,0)", "0 0 10px rgba(255,255,255,0.5)", "0 0 0 rgba(255,255,255,0)"]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-xl sm:text-2xl font-bold text-white"
+                >
+                  Disaster Ready School Dashboard
+                </motion.h1>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-xs sm:text-sm text-blue-100 mt-1"
+                >
+                  Real-time monitoring of school preparedness campaigns
+                </motion.p>
+              </motion.div>
               
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.3)" }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="sm:hidden bg-white/20 p-2 rounded-lg text-white hover:bg-white/30 transition"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
-              </button>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Filters Section with modern design */}
-          <div className="border-b border-gray-200 bg-white">
+          {/* Filters Section with animations */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="border-b border-gray-200 bg-white"
+          >
             <div className="p-4 sm:p-6">
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center justify-between w-full sm:hidden mb-2 text-gray-700"
               >
                 <h2 className="text-lg font-semibold">Filters & Controls</h2>
-                <span className="text-2xl">{showFilters ? "−" : "+"}</span>
-              </button>
+                <motion.span 
+                  animate={{ rotate: showFilters ? 180 : 0 }}
+                  className="text-2xl"
+                >
+                  {showFilters ? "−" : "+"}
+                </motion.span>
+              </motion.button>
               
-              <div className={`${showFilters ? 'block' : 'hidden'} sm:block`}>
-                <h2 className="text-lg font-semibold text-gray-700 mb-4 hidden sm:block">Filters & Controls</h2>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                  <div className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-                      Search Institute
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Type institute name..."
-                        value={instituteSearch}
-                        onChange={(e) => {
-                          setInstituteSearch(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10"
-                      />
-                      <svg className="w-4 h-4 absolute left-3 top-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">District</label>
-                    <select
-                      value={selectedDistrict}
-                      onChange={(e) => {
-                        setSelectedDistrict(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      {districts.map(district => (
-                        <option key={district} value={district}>{district}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="hidden sm:block">
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Date Range</label>
-                    <input
-                      type="text"
-                      placeholder="Coming soon"
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-gray-50 cursor-not-allowed"
-                      disabled
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</label>
-                    <select
-                      value={selectedStatus}
-                      onChange={(e) => {
-                        setSelectedStatus(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option>All statuses</option>
-                      <option>Approved</option>
-                      <option>Not Approved</option>
-                    </select>
-                  </div>
-
-                  <div className="hidden xl:block">
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">UDISE Updated</label>
-                    <select
-                      value={udiseUpdated}
-                      onChange={(e) => {
-                        setUdiseUpdated(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option>All schools</option>
-                      <option>Updated</option>
-                      <option>Not updated</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-4 gap-3">
-                  <button
-                    onClick={fetchData}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-lg text-sm hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+              <AnimatePresence>
+                {(showFilters || window.innerWidth >= 640) && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Refresh Data
-                  </button>
-                  <button className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-2.5 rounded-lg text-sm hover:from-green-700 hover:to-green-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                    <span>📥</span> Download Report ({filteredData.length})
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+                    <h2 className="text-lg font-semibold text-gray-700 mb-4 hidden sm:block">Filters & Controls</h2>
+                    
+                    <motion.div 
+                      variants={staggerChildren}
+                      initial="initial"
+                      animate="animate"
+                      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4"
+                    >
+                      <motion.div variants={fadeInUp} className="sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                          Search Institute
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Type institute name..."
+                            value={instituteSearch}
+                            onChange={(e) => {
+                              setInstituteSearch(e.target.value);
+                              setCurrentPage(1);
+                            }}
+                            className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10 transition-all"
+                          />
+                          <motion.svg 
+                            animate={{ rotate: [0, 10, -10, 0] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                            className="w-4 h-4 absolute left-3 top-3 text-gray-400" 
+                            fill="none" 
+                            stroke="currentColor" 
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </motion.svg>
+                        </div>
+                      </motion.div>
 
-          {/* Loading/Error States with animations */}
-          {loading && (
-            <div className="p-12 text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-              <p className="mt-2 text-blue-600">Loading data...</p>
-            </div>
-          )}
+                      <motion.div variants={fadeInUp}>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">District</label>
+                        <motion.select
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          value={selectedDistrict}
+                          onChange={(e) => {
+                            setSelectedDistrict(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        >
+                          {districts.map(district => (
+                            <option key={district} value={district}>{district}</option>
+                          ))}
+                        </motion.select>
+                      </motion.div>
 
-          {error && (
-            <div className="p-12 text-center">
-              <div className="text-red-500 text-5xl mb-3">⚠️</div>
-              <p className="text-red-600 font-medium">Error fetching API. Please try again.</p>
-              <button
-                onClick={fetchData}
-                className="mt-4 bg-red-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-red-700 transition"
+                      <motion.div variants={fadeInUp} className="hidden sm:block">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Date Range</label>
+                        <input
+                          type="text"
+                          placeholder="Coming soon"
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm bg-gray-50 cursor-not-allowed"
+                          disabled
+                        />
+                      </motion.div>
+
+                      <motion.div variants={fadeInUp}>
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                        <motion.select
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          value={selectedStatus}
+                          onChange={(e) => {
+                            setSelectedStatus(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        >
+                          <option>All statuses</option>
+                          <option>Approved</option>
+                          <option>Not Approved</option>
+                        </motion.select>
+                      </motion.div>
+
+                      <motion.div variants={fadeInUp} className="hidden xl:block">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">UDISE Updated</label>
+                        <motion.select
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          value={udiseUpdated}
+                          onChange={(e) => {
+                            setUdiseUpdated(e.target.value);
+                            setCurrentPage(1);
+                          }}
+                          className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        >
+                          <option>All schools</option>
+                          <option>Updated</option>
+                          <option>Not updated</option>
+                        </motion.select>
+                      </motion.div>
+                    </motion.div>
+
+                    <motion.div 
+                      variants={fadeInUp}
+                      className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-4 gap-3"
+                    >
+                      <motion.button
+                        whileHover={{ scale: 1.02, boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.5)" }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={fetchData}
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2.5 rounded-lg text-sm hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <motion.svg 
+                          animate={{ rotate: loading ? 360 : 0 }}
+                          transition={{ duration: 1, repeat: loading ? Infinity : 0, ease: "linear" }}
+                          className="w-4 h-4" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </motion.svg>
+                        Refresh Data
+                      </motion.button>
+                      <motion.button 
+                        whileHover={{ scale: 1.02, boxShadow: "0 10px 25px -5px rgba(34, 197, 94, 0.5)" }}
+                        whileTap={{ scale: 0.98 }}
+                        className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-2.5 rounded-lg text-sm hover:from-green-700 hover:to-green-800 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                      >
+                        <motion.span
+                          animate={{ y: [0, -3, 0] }}
+                          transition={{ duration: 1, repeat: Infinity }}
+                        >📥</motion.span> Download Report ({filteredData.length})
+                      </motion.button>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+
+          {/* Loading State with animations */}
+          <AnimatePresence>
+            {loading && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="p-12 text-center"
               >
-                Retry
-              </button>
-            </div>
-          )}
+                <motion.div 
+                  animate={{ 
+                    rotate: 360,
+                    scale: [1, 1.2, 1]
+                  }}
+                  transition={{ 
+                    rotate: { duration: 1, repeat: Infinity, ease: "linear" },
+                    scale: { duration: 1, repeat: Infinity }
+                  }}
+                  className="inline-block w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full"
+                />
+                <motion.p 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="mt-4 text-blue-600 font-medium"
+                >
+                  Loading data...
+                </motion.p>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-sm text-gray-500"
+                >
+                  Fetching latest information from the server
+                </motion.p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* Summary Cards with gradients */}
-          {!loading && !error && data.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 sm:p-6">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl border border-blue-200">
-                <p className="text-xs sm:text-sm text-blue-700 font-medium">Institutes</p>
-                <p className="text-lg sm:text-2xl font-bold text-blue-800">{summaryStats.totalInstitutes}</p>
-              </div>
-              <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-4 rounded-xl border border-green-200">
-                <p className="text-xs sm:text-sm text-green-700 font-medium">Participants</p>
-                <p className="text-lg sm:text-2xl font-bold text-green-800">{summaryStats.totalParticipants}</p>
-              </div>
-              <div className="bg-gradient-to-br from-pink-50 to-pink-100 p-3 sm:p-4 rounded-xl border border-pink-200">
-                <p className="text-xs sm:text-sm text-pink-700 font-medium">Girls</p>
-                <p className="text-lg sm:text-2xl font-bold text-pink-800">{summaryStats.totalGirls}</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 sm:p-4 rounded-xl border border-purple-200">
-                <p className="text-xs sm:text-sm text-purple-700 font-medium">Faculty</p>
-                <p className="text-lg sm:text-2xl font-bold text-purple-800">{summaryStats.totalFaculty}</p>
-              </div>
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-3 sm:p-4 rounded-xl border border-orange-200">
-                <p className="text-xs sm:text-sm text-orange-700 font-medium">Events</p>
-                <p className="text-lg sm:text-2xl font-bold text-orange-800">{summaryStats.totalEvents}</p>
-              </div>
-            </div>
-          )}
+          {/* Error State with animations */}
+          <AnimatePresence>
+            {error && (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="p-12 text-center"
+              >
+                <motion.div
+                  animate={{ 
+                    rotate: [0, 10, -10, 0],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 0.5 }}
+                  className="text-red-500 text-6xl mb-4"
+                >
+                  ⚠️
+                </motion.div>
+                <h3 className="text-lg font-medium text-red-600 mb-2">Error Fetching Data</h3>
+                <p className="text-gray-500 mb-4">Please check your connection and try again.</p>
+                <motion.button
+                  whileHover={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.5)" }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={fetchData}
+                  className="bg-red-600 text-white px-6 py-2.5 rounded-lg text-sm hover:bg-red-700 transition inline-flex items-center gap-2"
+                >
+                  <motion.svg 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-4 h-4" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </motion.svg>
+                  Retry
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* Desktop Table View with modern styling */}
-          {currentData.length > 0 && (
-            <div>
-              <div className="hidden md:block overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Institute</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participants</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Girls</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Faculty</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">District</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Media</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {currentData.map((row, index) => (
-                      <React.Fragment key={row.id}>
-                        <tr className={`hover:bg-gray-50 transition-colors cursor-pointer ${expandedRow === row.id ? 'bg-blue-50' : ''}`} 
-                            onClick={() => toggleRowExpansion(row.id)}>
-                          <td className="px-6 py-4 text-sm text-gray-500 align-top">{startIndex + index + 1}</td>
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900 align-top max-w-xs">
-                            {row.instituteName}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600 align-top max-w-xs break-words">
-                            {row.address}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalParticipants}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalGirls}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalFaculty}</td>
-                          <td className="px-6 py-4 text-sm text-gray-900 align-top">
-                            <span className="px-2 py-1 bg-gray-100 rounded-full text-xs">
-                              {row.district}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600 align-top">{row.eventDate}</td>
-                          <td className="px-6 py-4 text-sm align-top">
-                            {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
-                              <div className="flex gap-1">
-                                {row.photoIds?.length > 0 && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openPhotoGallery(row.photoIds);
-                                    }}
-                                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded text-xs"
-                                  >
-                                    📸 {row.photoIds.length}
-                                  </button>
-                                )}
-                                {row.newspaperPhotoIds?.length > 0 && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openPhotoGallery(row.newspaperPhotoIds);
-                                    }}
-                                    className="flex items-center gap-1 text-green-600 hover:text-green-800 bg-green-50 px-2 py-1 rounded text-xs"
-                                  >
-                                    📰 {row.newspaperPhotoIds.length}
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-sm align-top">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleRowExpansion(row.id);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-                            >
-                              {expandedRow === row.id ? "▼" : "▶"} Details
-                            </button>
-                          </td>
-                        </tr>
-                        {expandedRow === row.id && (
-                          <tr className="bg-blue-50">
-                            <td colSpan="10" className="px-6 py-6">
-                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                  <div className="bg-white p-4 rounded-xl shadow-sm">
-                                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                                      <span className="w-1 h-4 bg-blue-500 rounded-full"></span>
-                                      Event Details
-                                    </h3>
-                                    <div className="space-y-2">
-                                      <p><span className="font-medium text-gray-600">Email:</span> {row.email || 'N/A'}</p>
-                                      <p><span className="font-medium text-gray-600">Email Address:</span> {row.emailAddress || 'N/A'}</p>
-                                      <p><span className="font-medium text-gray-600">Score:</span> {row.score}</p>
-                                      <p><span className="font-medium text-gray-600">Coordinator:</span> {row.coordinatorDetails || 'N/A'}</p>
-                                      <p><span className="font-medium text-gray-600">Feedback:</span> {row.feedback || 'Not provided'}</p>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="bg-white p-4 rounded-xl shadow-sm">
-                                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                                      <span className="w-1 h-4 bg-green-500 rounded-full"></span>
-                                      Links & Reports
-                                    </h3>
-                                    <div className="space-y-2">
-                                      {row.reportLink && (
-                                        <a href={row.reportLink} target="_blank" rel="noopener noreferrer" 
-                                           className="flex items-center gap-2 text-blue-600 hover:underline break-all">
-                                          <span className="text-xl">📄</span> View Report
-                                        </a>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div className="space-y-4">
-                                  <div className="bg-white p-4 rounded-xl shadow-sm">
-                                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                                      <span className="w-1 h-4 bg-purple-500 rounded-full"></span>
-                                      Campus Ambassadors
-                                    </h3>
-                                    <div className="bg-gray-50 p-3 rounded-lg max-h-40 overflow-y-auto">
-                                      {formatAmbassadors(row.campusAmbassadors)}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="bg-white p-4 rounded-xl shadow-sm">
-                                    <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                                      <span className="w-1 h-4 bg-orange-500 rounded-full"></span>
-                                      Additional Info
-                                    </h3>
-                                    <p><span className="font-medium text-gray-600">State & District:</span> {row.stateDistrict}</p>
-                                    <p><span className="font-medium text-gray-600">Timestamp:</span> {row.timestamp}</p>
-                                  </div>
+          {/* Summary Cards with animations */}
+          <AnimatePresence>
+            {!loading && !error && data.length > 0 && (
+              <motion.div 
+                variants={staggerChildren}
+                initial="initial"
+                animate="animate"
+                className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-4 sm:p-6"
+              >
+                {[
+                  { label: "Institutes", value: summaryStats.totalInstitutes, color: "blue", icon: "🏫" },
+                  { label: "Participants", value: summaryStats.totalParticipants, color: "green", icon: "👥" },
+                  { label: "Girls", value: summaryStats.totalGirls, color: "pink", icon: "👧" },
+                  { label: "Faculty", value: summaryStats.totalFaculty, color: "purple", icon: "👨‍🏫" },
+                  { label: "Events", value: summaryStats.totalEvents, color: "orange", icon: "📅" }
+                ].map((stat, index) => (
+                  <motion.div
+                    key={index}
+                    variants={fadeInUp}
+                    whileHover={{ 
+                      scale: 1.05, 
+                      y: -5,
+                      boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)"
+                    }}
+                    className={`bg-gradient-to-br from-${stat.color}-50 to-${stat.color}-100 p-3 sm:p-4 rounded-xl border border-${stat.color}-200 transition-all`}
+                  >
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", delay: index * 0.1 }}
+                      className="text-2xl mb-1"
+                    >
+                      {stat.icon}
+                    </motion.div>
+                    <p className={`text-xs sm:text-sm text-${stat.color}-700 font-medium`}>{stat.label}</p>
+                    <motion.p 
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", delay: index * 0.1 + 0.1 }}
+                      className={`text-lg sm:text-2xl font-bold text-${stat.color}-800`}
+                    >
+                      {stat.value}
+                    </motion.p>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-                                  {/* Photos in expanded desktop view */}
-                                  {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
-                                    <div className="bg-white p-4 rounded-xl shadow-sm">
-                                      <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                                        <span className="w-1 h-4 bg-pink-500 rounded-full"></span>
-                                        Media Gallery
-                                      </h3>
-                                      <div className="space-y-4">
-                                        {row.photoIds?.length > 0 && (
-                                          <div>
-                                            <p className="text-sm font-medium text-gray-600 mb-2">Event Photos</p>
-                                            <div className="grid grid-cols-4 gap-2">
-                                              {row.photoIds.slice(0, 4).map((photo, idx) => (
-                                                <button
-                                                  key={idx}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openPhotoGallery(row.photoIds, idx);
-                                                  }}
-                                                  className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all hover:scale-105"
-                                                >
-                                                  <img src={photo.thumbnail} alt={`Event ${idx + 1}`} className="w-full h-full object-cover" />
-                                                </button>
-                                              ))}
-                                              {row.photoIds.length > 4 && (
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openPhotoGallery(row.photoIds, 4);
-                                                  }}
-                                                  className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-600 hover:bg-gray-200 transition"
-                                                >
-                                                  +{row.photoIds.length - 4}
-                                                </button>
-                                              )}
-                                            </div>
-                                          </div>
-                                        )}
-                                        
-                                        {row.newspaperPhotoIds?.length > 0 && (
-                                          <div>
-                                            <p className="text-sm font-medium text-gray-600 mb-2">Newspaper Clippings</p>
-                                            <div className="grid grid-cols-4 gap-2">
-                                              {row.newspaperPhotoIds.slice(0, 4).map((photo, idx) => (
-                                                <button
-                                                  key={idx}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openPhotoGallery(row.newspaperPhotoIds, idx);
-                                                  }}
-                                                  className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-green-500 transition-all hover:scale-105"
-                                                >
-                                                  <img src={photo.thumbnail} alt={`Newspaper ${idx + 1}`} className="w-full h-full object-cover" />
-                                                </button>
-                                              ))}
-                                              {row.newspaperPhotoIds.length > 4 && (
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openPhotoGallery(row.newspaperPhotoIds, 4);
-                                                  }}
-                                                  className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-600 hover:bg-gray-200 transition"
-                                                >
-                                                  +{row.newspaperPhotoIds.length - 4}
-                                                </button>
-                                              )}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
+          {/* Desktop Table View with animations */}
+          <AnimatePresence>
+            {currentData.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {["#", "Institute", "Address", "Participants", "Girls", "Faculty", "District", "Date", "Media", "Actions"].map((header, i) => (
+                          <motion.th
+                            key={i}
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          >
+                            {header}
+                          </motion.th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {currentData.map((row, index) => (
+                        <React.Fragment key={row.id}>
+                          <motion.tr 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.03 }}
+                            whileHover={{ 
+                              backgroundColor: "#f9fafb",
+                              scale: 1.01,
+                              boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)"
+                            }}
+                            className={`cursor-pointer transition-all ${expandedRow === row.id ? 'bg-blue-50' : ''}`}
+                            onClick={() => toggleRowExpansion(row.id)}
+                          >
+                            <td className="px-6 py-4 text-sm text-gray-500 align-top">{startIndex + index + 1}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900 align-top max-w-xs">
+                              {row.instituteName}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-600 align-top max-w-xs break-words">
+                              {row.address}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalParticipants}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalGirls}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900 align-top font-semibold">{row.totalFaculty}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900 align-top">
+                              <motion.span 
+                                whileHover={{ scale: 1.05 }}
+                                className="px-2 py-1 bg-gray-100 rounded-full text-xs inline-block"
+                              >
+                                {row.district}
+                              </motion.span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-600 align-top">{row.eventDate}</td>
+                            <td className="px-6 py-4 text-sm align-top">
+                              {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
+                                <div className="flex gap-1">
+                                  {row.photoIds?.length > 0 && (
+                                    <motion.button
+                                      whileHover={{ scale: 1.1 }}
+                                      whileTap={{ scale: 0.95 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openPhotoGallery(row.photoIds);
+                                      }}
+                                      className="flex items-center gap-1 text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded text-xs"
+                                    >
+                                      <motion.span
+                                        animate={{ scale: [1, 1.2, 1] }}
+                                        transition={{ duration: 2, repeat: Infinity }}
+                                      >📸</motion.span> {row.photoIds.length}
+                                    </motion.button>
+                                  )}
+                                  {row.newspaperPhotoIds?.length > 0 && (
+                                    <motion.button
+                                      whileHover={{ scale: 1.1 }}
+                                      whileTap={{ scale: 0.95 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openPhotoGallery(row.newspaperPhotoIds);
+                                      }}
+                                      className="flex items-center gap-1 text-green-600 hover:text-green-800 bg-green-50 px-2 py-1 rounded text-xs"
+                                    >
+                                      <motion.span
+                                        animate={{ rotate: [0, 5, -5, 0] }}
+                                        transition={{ duration: 2, repeat: Infinity }}
+                                      >📰</motion.span> {row.newspaperPhotoIds.length}
+                                    </motion.button>
                                   )}
                                 </div>
-                              </div>
+                              )}
                             </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            <td className="px-6 py-4 text-sm align-top">
+                              <motion.button 
+                                whileHover={{ x: 5 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleRowExpansion(row.id);
+                                }}
+                                className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                              >
+                                <motion.span
+                                  animate={{ rotate: expandedRow === row.id ? 90 : 0 }}
+                                >
+                                  {expandedRow === row.id ? "▼" : "▶"}
+                                </motion.span> Details
+                              </motion.button>
+                            </td>
+                          </motion.tr>
+                          
+                          <AnimatePresence>
+                            {expandedRow === row.id && (
+                              <motion.tr
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="bg-blue-50"
+                              >
+                                <td colSpan="10" className="px-6 py-6">
+                                  <motion.div 
+                                    variants={staggerChildren}
+                                    initial="initial"
+                                    animate="animate"
+                                    className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+                                  >
+                                    <div className="space-y-4">
+                                      <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
+                                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                          <motion.span 
+                                            animate={{ scale: [1, 1.2, 1] }}
+                                            transition={{ duration: 2, repeat: Infinity }}
+                                            className="w-1 h-4 bg-blue-500 rounded-full"
+                                          />
+                                          Event Details
+                                        </h3>
+                                        <motion.div variants={staggerChildren} className="space-y-2">
+                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Email:</span> {row.email || 'N/A'}</motion.p>
+                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Email Address:</span> {row.emailAddress || 'N/A'}</motion.p>
+                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Score:</span> {row.score}</motion.p>
+                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Coordinator:</span> {row.coordinatorDetails || 'N/A'}</motion.p>
+                                          <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Feedback:</span> {row.feedback || 'Not provided'}</motion.p>
+                                        </motion.div>
+                                      </motion.div>
+                                      
+                                      <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
+                                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                          <motion.span 
+                                            animate={{ scale: [1, 1.2, 1] }}
+                                            transition={{ duration: 2, repeat: Infinity, delay: 0.2 }}
+                                            className="w-1 h-4 bg-green-500 rounded-full"
+                                          />
+                                          Links & Reports
+                                        </h3>
+                                        <div className="space-y-2">
+                                          {row.reportLink && (
+                                            <motion.a 
+                                              href={row.reportLink} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              variants={fadeInUp}
+                                              whileHover={{ x: 5, color: "#2563eb" }}
+                                              className="flex items-center gap-2 text-blue-600 hover:underline break-all"
+                                            >
+                                              <motion.span
+                                                animate={{ rotate: [0, 10, -10, 0] }}
+                                                transition={{ duration: 2, repeat: Infinity }}
+                                                className="text-xl"
+                                              >📄</motion.span> View Report
+                                            </motion.a>
+                                          )}
+                                        </div>
+                                      </motion.div>
+                                    </div>
+                                    
+                                    <div className="space-y-4">
+                                      <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
+                                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                          <motion.span 
+                                            animate={{ scale: [1, 1.2, 1] }}
+                                            transition={{ duration: 2, repeat: Infinity, delay: 0.4 }}
+                                            className="w-1 h-4 bg-purple-500 rounded-full"
+                                          />
+                                          Campus Ambassadors
+                                        </h3>
+                                        <div className="bg-gray-50 p-3 rounded-lg max-h-40 overflow-y-auto">
+                                          {formatAmbassadors(row.campusAmbassadors)}
+                                        </div>
+                                      </motion.div>
+                                      
+                                      <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
+                                        <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                          <motion.span 
+                                            animate={{ scale: [1, 1.2, 1] }}
+                                            transition={{ duration: 2, repeat: Infinity, delay: 0.6 }}
+                                            className="w-1 h-4 bg-orange-500 rounded-full"
+                                          />
+                                          Additional Info
+                                        </h3>
+                                        <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">State & District:</span> {row.stateDistrict}</motion.p>
+                                        <motion.p variants={fadeInUp}><span className="font-medium text-gray-600">Timestamp:</span> {row.timestamp}</motion.p>
+                                      </motion.div>
 
-              {/* Mobile Card View */}
-              <div className="md:hidden p-4">
-                {currentData.map((row, index) => (
-                  <MobileCard key={row.id} row={row} index={index} />
-                ))}
-              </div>
-
-              {/* Pagination with modern design */}
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <span className="text-sm text-gray-600">
-                  Showing <span className="font-semibold">{startIndex + 1}</span> to{' '}
-                  <span className="font-semibold">{Math.min(startIndex + itemsPerPage, filteredData.length)}</span> of{' '}
-                  <span className="font-semibold">{filteredData.length}</span> institutes
-                </span>
-                
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-white transition-all flex items-center gap-1"
-                  >
-                    <span>←</span> Prev
-                  </button>
-                  
-                  <div className="flex gap-1">
-                    {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${
-                            currentPage === pageNum
-                              ? 'bg-blue-600 text-white shadow-md'
-                              : 'hover:bg-gray-200'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-white transition-all flex items-center gap-1"
-                  >
-                    Next <span>→</span>
-                  </button>
+                                      {/* Photos in expanded desktop view with animations */}
+                                      {(row.photoIds?.length > 0 || row.newspaperPhotoIds?.length > 0) && (
+                                        <motion.div variants={slideInFromLeft} className="bg-white p-4 rounded-xl shadow-sm">
+                                          <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                            <motion.span 
+                                              animate={{ scale: [1, 1.2, 1] }}
+                                              transition={{ duration: 2, repeat: Infinity, delay: 0.8 }}
+                                              className="w-1 h-4 bg-pink-500 rounded-full"
+                                            />
+                                            Media Gallery
+                                          </h3>
+                                          <div className="space-y-4">
+                                            {row.photoIds?.length > 0 && (
+                                              <motion.div variants={fadeInUp}>
+                                                <p className="text-sm font-medium text-gray-600 mb-2">Event Photos</p>
+                                                <div className="grid grid-cols-4 gap-2">
+                                                  {row.photoIds.slice(0, 4).map((photo, idx) => (
+                                                    <motion.button
+                                                      key={idx}
+                                                      whileHover={{ scale: 1.1, rotate: 2, zIndex: 10 }}
+                                                      whileTap={{ scale: 0.95 }}
+                                                      initial={{ opacity: 0, scale: 0.8 }}
+                                                      animate={{ opacity: 1, scale: 1 }}
+                                                      transition={{ delay: idx * 0.05 }}
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openPhotoGallery(row.photoIds, idx);
+                                                      }}
+                                                      className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-all"
+                                                    >
+                                                      <img src={photo.thumbnail} alt={`Event ${idx + 1}`} className="w-full h-full object-cover" />
+                                                    </motion.button>
+                                                  ))}
+                                                  {row.photoIds.length > 4 && (
+                                                    <motion.button
+                                                      whileHover={{ scale: 1.1, backgroundColor: "#e5e7eb" }}
+                                                      whileTap={{ scale: 0.95 }}
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openPhotoGallery(row.photoIds, 4);
+                                                      }}
+                                                      className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-600 hover:bg-gray-200 transition"
+                                                    >
+                                                      +{row.photoIds.length - 4}
+                                                    </motion.button>
+                                                  )}
+                                                </div>
+                                              </motion.div>
+                                            )}
+                                            
+                                            {row.newspaperPhotoIds?.length > 0 && (
+                                              <motion.div variants={fadeInUp}>
+                                                <p className="text-sm font-medium text-gray-600 mb-2">Newspaper Clippings</p>
+                                                <div className="grid grid-cols-4 gap-2">
+                                                  {row.newspaperPhotoIds.slice(0, 4).map((photo, idx) => (
+                                                    <motion.button
+                                                      key={idx}
+                                                      whileHover={{ scale: 1.1, rotate: -2, zIndex: 10 }}
+                                                      whileTap={{ scale: 0.95 }}
+                                                      initial={{ opacity: 0, scale: 0.8 }}
+                                                      animate={{ opacity: 1, scale: 1 }}
+                                                      transition={{ delay: idx * 0.05 }}
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openPhotoGallery(row.newspaperPhotoIds, idx);
+                                                      }}
+                                                      className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-green-500 transition-all"
+                                                    >
+                                                      <img src={photo.thumbnail} alt={`Newspaper ${idx + 1}`} className="w-full h-full object-cover" />
+                                                    </motion.button>
+                                                  ))}
+                                                  {row.newspaperPhotoIds.length > 4 && (
+                                                    <motion.button
+                                                      whileHover={{ scale: 1.1, backgroundColor: "#e5e7eb" }}
+                                                      whileTap={{ scale: 0.95 }}
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openPhotoGallery(row.newspaperPhotoIds, 4);
+                                                      }}
+                                                      className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-600 hover:bg-gray-200 transition"
+                                                    >
+                                                      +{row.newspaperPhotoIds.length - 4}
+                                                    </motion.button>
+                                                  )}
+                                                </div>
+                                              </motion.div>
+                                            )}
+                                          </div>
+                                        </motion.div>
+                                      )}
+                                    </div>
+                                  </motion.div>
+                                </td>
+                              </motion.tr>
+                            )}
+                          </AnimatePresence>
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* No Data State */}
-          {!loading && !error && data.length === 0 && (
-            <div className="p-12 text-center">
-              <div className="text-gray-400 text-6xl mb-4">📊</div>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">No Data Available</h3>
-              <p className="text-gray-500 mb-4">Click the refresh button to fetch data from the server.</p>
-              <button
-                onClick={fetchData}
-                className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm hover:bg-blue-700 transition inline-flex items-center gap-2"
+                {/* Mobile Card View with animations */}
+                <div className="md:hidden p-4">
+                  <AnimatePresence>
+                    {currentData.map((row, index) => (
+                      <MobileCard key={row.id} row={row} index={index} />
+                    ))}
+                  </AnimatePresence>
+                </div>
+
+                {/* Pagination with animations */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4"
+                >
+                  <motion.span 
+                    animate={{ scale: [1, 1.02, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="text-sm text-gray-600"
+                  >
+                    Showing <span className="font-semibold">{startIndex + 1}</span> to{' '}
+                    <span className="font-semibold">{Math.min(startIndex + itemsPerPage, filteredData.length)}</span> of{' '}
+                    <span className="font-semibold">{filteredData.length}</span> institutes
+                  </motion.span>
+                  
+                  <div className="flex gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.05, x: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-white transition-all flex items-center gap-1"
+                    >
+                      <motion.span
+                        animate={{ x: currentPage > 1 ? [-2, 0, -2] : 0 }}
+                        transition={{ duration: 1, repeat: currentPage > 1 ? Infinity : 0 }}
+                      >←</motion.span> Prev
+                    </motion.button>
+                    
+                    <div className="flex gap-1">
+                      {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <motion.button
+                            key={i}
+                            whileHover={{ scale: 1.1, y: -2 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'hover:bg-gray-200'
+                            }`}
+                          >
+                            {pageNum}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                    
+                    <motion.button
+                      whileHover={{ scale: 1.05, x: 2 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50 hover:bg-white transition-all flex items-center gap-1"
+                    >
+                      Next <motion.span
+                        animate={{ x: currentPage < totalPages ? [2, 0, 2] : 0 }}
+                        transition={{ duration: 1, repeat: currentPage < totalPages ? Infinity : 0 }}
+                      >→</motion.span>
+                    </motion.button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* No Data State with animations */}
+          <AnimatePresence>
+            {!loading && !error && data.length === 0 && (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="p-12 text-center"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Refresh Data
-              </button>
-            </div>
-          )}
-        </div>
+                <motion.div
+                  animate={{ 
+                    y: [0, -10, 0],
+                    rotate: [0, 5, -5, 0]
+                  }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="text-gray-400 text-6xl mb-4"
+                >
+                  📊
+                </motion.div>
+                <motion.h3 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-lg font-medium text-gray-700 mb-2"
+                >
+                  No Data Available
+                </motion.h3>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-gray-500 mb-4"
+                >
+                  Click the refresh button to fetch data from the server.
+                </motion.p>
+                <motion.button
+                  whileHover={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(59, 130, 246, 0.5)" }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={fetchData}
+                  className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm hover:bg-blue-700 transition inline-flex items-center gap-2"
+                >
+                  <motion.svg 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-4 h-4" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </motion.svg>
+                  Refresh Data
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
