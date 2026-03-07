@@ -78,6 +78,10 @@ const App = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   
+  // Page search state
+  const [pageSearchInput, setPageSearchInput] = useState("");
+  const [pageSearchError, setPageSearchError] = useState("");
+  
   // Filter states
   const [instituteSearch, setInstituteSearch] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("All districts");
@@ -380,6 +384,30 @@ const App = () => {
     setCurrentPhotoUrls(photos);
     setCurrentPhotoIndex(startIndex);
     setShowPhotoGallery(true);
+  };
+
+  // Page search function
+  const handlePageSearch = (e) => {
+    e.preventDefault();
+    setPageSearchError("");
+    
+    const pageNum = parseInt(pageSearchInput);
+    
+    if (isNaN(pageNum)) {
+      setPageSearchError("कृपया एक वैध पृष्ठ संख्या दर्ज करें");
+      return;
+    }
+    
+    if (pageNum < 1 || pageNum > totalPages) {
+      setPageSearchError(`कृपया 1 से ${totalPages} के बीच की संख्या दर्ज करें`);
+      return;
+    }
+    
+    setCurrentPage(pageNum);
+    setPageSearchInput("");
+    
+    // Smooth scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const formatAmbassadors = (ambassadors) => {
@@ -1672,15 +1700,16 @@ const App = () => {
                   </AnimatePresence>
                 </div>
 
-                {/* Pagination with animations */}
+                {/* Pagination with animations and Page Search */}
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className={`px-6 py-4 border-t flex flex-col sm:flex-row justify-between items-center gap-4 ${
+                  className={`px-6 py-4 border-t flex flex-col lg:flex-row justify-between items-center gap-4 ${
                     isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'
                   }`}
                 >
+                  {/* Left side - Showing info */}
                   <motion.span 
                     animate={{ scale: [1, 1.02, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
@@ -1691,6 +1720,45 @@ const App = () => {
                     <span className="font-semibold">{filteredData.length}</span> institutes
                   </motion.span>
                   
+                  {/* Center - Page Search */}
+                  <form onSubmit={handlePageSearch} className="flex items-center gap-2">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={pageSearchInput}
+                        onChange={(e) => setPageSearchInput(e.target.value)}
+                        placeholder={`Page (1-${totalPages})`}
+                        className={`w-28 sm:w-32 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+                          isDark 
+                            ? 'bg-gray-600 border-gray-500 text-white placeholder-gray-400' 
+                            : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      />
+                      {pageSearchError && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="absolute -top-8 left-0 text-xs text-red-500 whitespace-nowrap"
+                        >
+                          {pageSearchError}
+                        </motion.div>
+                      )}
+                    </div>
+                    <motion.button
+                      type="submit"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`px-3 py-2 text-sm rounded-lg transition-all flex items-center gap-1 ${
+                        isDark 
+                          ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      <span>🔍</span> Go
+                    </motion.button>
+                  </form>
+                  
+                  {/* Right side - Pagination buttons */}
                   <div className="flex gap-2">
                     <motion.button
                       whileHover={{ scale: 1.05, x: -2 }}
@@ -1710,16 +1778,16 @@ const App = () => {
                     </motion.button>
                     
                     <div className="flex gap-1">
-                      {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                      {[...Array(Math.min(3, totalPages))].map((_, i) => {
                         let pageNum;
-                        if (totalPages <= 5) {
+                        if (totalPages <= 3) {
                           pageNum = i + 1;
-                        } else if (currentPage <= 3) {
+                        } else if (currentPage <= 2) {
                           pageNum = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNum = totalPages - 4 + i;
+                        } else if (currentPage >= totalPages - 1) {
+                          pageNum = totalPages - 2 + i;
                         } else {
-                          pageNum = currentPage - 2 + i;
+                          pageNum = currentPage - 1 + i;
                         }
                         
                         return (
@@ -1740,6 +1808,21 @@ const App = () => {
                           </motion.button>
                         );
                       })}
+                      {totalPages > 3 && currentPage < totalPages - 1 && (
+                        <span className={`px-2 flex items-center ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>...</span>
+                      )}
+                      {totalPages > 3 && currentPage < totalPages - 1 && (
+                        <motion.button
+                          whileHover={{ scale: 1.1, y: -2 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setCurrentPage(totalPages)}
+                          className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${
+                            isDark ? 'hover:bg-gray-600 text-gray-300' : 'hover:bg-gray-200'
+                          }`}
+                        >
+                          {totalPages}
+                        </motion.button>
+                      )}
                     </div>
                     
                     <motion.button
