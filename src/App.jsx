@@ -1051,7 +1051,7 @@ const App = () => {
                         <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${
                           isDark ? 'text-gray-400' : 'text-gray-500'
                         }`}>
-                          UDISE Updated
+                          Institute Status
                         </label>
                         <motion.select
                           whileHover={{ scale: 1.02 }}
@@ -1067,7 +1067,7 @@ const App = () => {
                               : 'bg-white border-gray-300 text-gray-900'
                           }`}
                         >
-                          <option>All schools</option>
+                          <option>All Institute</option>
                           <option>Updated</option>
                           <option>Not updated</option>
                         </motion.select>
